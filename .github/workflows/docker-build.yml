@@ -1,0 +1,52 @@
+name: Docker Build & Hardening Test
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+permissions:
+  contents: read
+
+jobs:
+  docker-build:
+    name: Build & Healthcheck Verification
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          load: true
+          tags: podcast-researcher:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Test Container Startup & Non-Root Permissions
+        run: |
+          # Container im Hintergrund starten
+          docker run -d --name test-app -p 8000:8000 podcast-researcher:test
+          
+          # Warten bis Service bereit ist (max 30s)
+          sleep 10
+          
+          # Healthcheck abfragen
+          curl --fail --retry 3 --retry-delay 2 http://127.0.0.1:8000/api/health
+          
+          # Prüfen, ob als Non-Root (appuser) ausgeführt wird
+          USER_ID=$(docker exec test-app id -u)
+          if [ "$USER_ID" -eq 0 ]; then
+            echo "Fehler: Container läuft als Root!"
+            exit 1
+          fi
+          echo "Erfolg: Container läuft sicher als unprivilegierter User (UID $USER_ID)."
+          
+          docker stop test-app
