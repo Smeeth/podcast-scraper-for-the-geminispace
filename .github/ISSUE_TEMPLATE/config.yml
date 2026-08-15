@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Podcast & Media Channel Researcher Contributors
+blank_issues_enabled: false
+contact_links:
+  - name: "📖 Living Agent Documentation"
+    url: "https://github.com"
+    about: "Konsultiere vorab die Architektur- und Entscheidungs-Dokumentation im Verzeichnis .agents/"
