@@ -1,2 +1,91 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Podcast & Media Channel Researcher Contributors
+#
+# Git Attributes & Line Ending Configuration
+
+# ------------------------------------------------------------------------------
+# 1. Global Defaults
+# ------------------------------------------------------------------------------
+* text=auto eol=lf
+
+# ------------------------------------------------------------------------------
+# 2. Source Code & Language Specifics
+# ------------------------------------------------------------------------------
+# Python
+*.py text eol=lf diff=python whitespace=space-before-tab,-indent-with-non-tab,trailing-space
+*.pyi text eol=lf diff=python
+requirements.txt text eol=lf
+
+# Web & Frontend
+*.html text eol=lf diff=html
+*.css text eol=lf diff=css
+*.js text eol=lf
+*.mjs text eol=lf
+*.json text eol=lf
+*.svg text eol=lf
+
+# Documentation & Text Formats
+*.md text eol=lf
+*.txt text eol=lf
+*.rst text eol=lf
+LICENSE text eol=lf
+
+# Alternative Protocol Files (Geminispace & Gopherspace)
+*.gmi text eol=lf
+gophermap text eol=lf
+
+# Configuration & Containerization
+*.yml text eol=lf
+*.yaml text eol=lf
+*.toml text eol=lf
+*.ini text eol=lf
+*.cfg text eol=lf
+*.conf text eol=lf
+.env.example text eol=lf
+Dockerfile text eol=lf
+docker-compose*.yml text eol=lf
+
+# Shell & Scripts
+*.sh text eol=lf
+*.bash text eol=lf
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# ------------------------------------------------------------------------------
+# 3. Binary Files (Prevent Line-Ending Conversion & Diff Corruption)
+# ------------------------------------------------------------------------------
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.mp3 binary
+*.m4a binary
+*.wav binary
+*.mp4 binary
+*.webm binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.tar binary
+*.gz binary
+*.zip binary
+*.7z binary
+*.sqlite binary
+*.sqlite3 binary
+*.db binary
+*.pyc binary
+*.pyd binary
+
+# ------------------------------------------------------------------------------
+# 4. Release Archive Exclusions (git archive)
+# ------------------------------------------------------------------------------
+.github/ export-ignore
+.agents/ export-ignore
+.gitattributes export-ignore
+.gitignore export-ignore
+tests/ export-ignore
+.venv/ export-ignore
