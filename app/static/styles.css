@@ -1,0 +1,274 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2026 Podcast & Media Channel Researcher Contributors */
+
+:root {
+  --bg-main: #090d16;
+  --bg-card: #111827;
+  --bg-card-header: #1a2234;
+  --bg-sidebar: #0f172a;
+  --border-color: #273549;
+  --border-glow: rgba(56, 189, 248, 0.25);
+  --accent-cyan: #38bdf8;
+  --accent-indigo: #818cf8;
+  --accent-green: #22c55e;
+  --text-main: #e2e8f0;
+  --text-muted: #94a3b8;
+}
+
+body {
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Header & Navbar */
+.navbar-custom {
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.brand-icon {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, #38bdf8, #818cf8);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #020617;
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+
+/* Card Styling */
+.card-custom {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  transition: border-color 0.2s ease;
+}
+.card-custom:hover {
+  border-color: rgba(56, 189, 248, 0.4);
+}
+
+.card-header-custom {
+  background-color: var(--bg-card-header);
+  border-bottom: 1px solid var(--border-color);
+  padding: 0.75rem 1rem;
+  border-top-left-radius: 11px;
+  border-top-right-radius: 11px;
+  font-weight: 600;
+}
+
+/* Archive Sidebar */
+.archive-item {
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  background: rgba(255, 255, 255, 0.02);
+  margin-bottom: 0.4rem;
+}
+.archive-item:hover {
+  background: rgba(56, 189, 248, 0.08);
+  border-color: rgba(56, 189, 248, 0.3);
+}
+.archive-item.active {
+  background: rgba(56, 189, 248, 0.15);
+  border-color: var(--accent-cyan);
+}
+
+/* Platform Badges */
+.badge-youtube {
+  background-color: #ef4444;
+  color: #fff;
+}
+.badge-rss {
+  background-color: #f59e0b;
+  color: #000;
+}
+.badge-apple {
+  background-color: #a855f7;
+  color: #fff;
+}
+
+/* Scraper Hero Input */
+.hero-input-container {
+  background: linear-gradient(180deg, #162032 0%, #111827 100%);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+
+/* Episode Table */
+.episode-table-container {
+  max-height: 520px;
+  overflow-y: auto;
+}
+
+.table-custom {
+  margin-bottom: 0;
+}
+.table-custom th {
+  background-color: #162032;
+  color: #94a3b8;
+  font-size: 0.825rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  border-bottom: 2px solid var(--border-color);
+}
+.table-custom td {
+  border-bottom: 1px solid var(--border-color);
+  vertical-align: middle;
+  font-size: 0.9rem;
+}
+
+/* Code & Output Blocks */
+.output-code-container {
+  background-color: #080d1a;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1rem;
+  font-family: SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.875rem;
+  color: #cbd5e1;
+  max-height: 480px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* When rendering Markdown HTML from AI responses, disable monospace & pre-wrap */
+.output-code-container.output-rendered {
+  font-family: inherit;
+  white-space: normal;
+  font-size: 0.9rem;
+  line-height: 1.65;
+}
+
+/* Offcanvas Drawer */
+.drawer-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  z-index: 1040;
+  display: none;
+}
+
+.custom-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 580px;
+  max-width: 90vw;
+  height: 100vh;
+  background: #0f172a;
+  border-left: 1px solid var(--border-color);
+  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+  z-index: 1050;
+  /* Always display:flex so the transform transition can animate.
+     Use visibility + pointer-events to hide instead of display:none. */
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              visibility 0.3s;
+  visibility: hidden;
+  pointer-events: none;
+}
+.custom-drawer.show {
+  transform: translateX(0);
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.drawer-header {
+  padding: 1rem 1.25rem;
+  background: #1a2234;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.drawer-body {
+  padding: 1.25rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Transcript segment list */
+.transcript-segment {
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.4rem;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.02);
+  border-left: 3px solid #38bdf8;
+  font-size: 0.875rem;
+}
+.transcript-segment:hover {
+  background: rgba(56, 189, 248, 0.08);
+}
+
+/* Toast Notifications */
+#toastContainer {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1090;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.custom-toast {
+  background: #1e293b;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.75rem 1.25rem;
+  color: #fff;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+  animation: slideInRight 0.3s ease;
+  min-width: 260px;
+}
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* Footer */
+footer {
+  margin-top: auto;
+  border-top: 1px solid var(--border-color);
+  background-color: #0b0f19;
+  padding: 1rem 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
