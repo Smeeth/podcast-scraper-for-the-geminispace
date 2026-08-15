@@ -1,0 +1,9 @@
+# 📻 Podcast & Media Channel Archive (Geminispace)
+Willkommen im dezentralen Podcast- und Medienarchiv für den Geminispace.
+Sämtliche Episoden sind als direkte Medien-Links referenziert.
+
+## 📚 Verfügbare Medienkanäle (0)
+
+Aktuell sind noch keine Podcasts im Archiv erfasst.
+---
+Server-Info: Generiert mit Podcast & Media Channel Researcher & AI Analyzer (GPL-3.0)
