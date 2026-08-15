@@ -1,0 +1,58 @@
+name: CI - Security & Quality Pipeline
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master ]
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-security:
+    name: Test & Security Audit (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+
+      - name: Install System Dependencies (ffmpeg)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install ruff bandit
+
+      - name: 1. SPDX License Header Verification (GPL-3.0)
+        run: python .github/scripts/verify_spdx_headers.py
+
+      - name: 2. Gemtext & Gophermap Protocol Validator
+        run: python .github/scripts/gemtext_validator.py
+
+      - name: 3. Security Baseline Audit (ADR-0001)
+        run: python .github/scripts/security_audit.py
+
+      - name: 4. Static Code & Security Analysis (Bandit & Ruff)
+        run: |
+          ruff check . --ignore E501
+          bandit -r app -ll -ii
+
+      - name: 5. Execute Test Suite
+        run: |
+          python -m unittest discover -s tests -v
