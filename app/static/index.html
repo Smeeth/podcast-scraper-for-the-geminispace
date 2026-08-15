@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Copyright (C) 2026 Podcast & Media Channel Researcher Contributors -->
+<html lang="de" data-bs-theme="dark">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Podcast & Media Channel Researcher & AI Analyzer</title>
+  <meta name="description"
+    content="Modulare, sicherheitsgehärtete Web-Applikation zur automatisierten Recherche, Analyse und Wikipedia-Aufbereitung von Podcasts und Medienkanälen.">
+
+  <!-- Lokales Bootstrap 5 & Stylesheet (Keine externen CDNs, strikt CSP-konform) -->
+  <link rel="stylesheet" href="/vendor/bootstrap.min.css">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+
+<body>
+
+  <!-- ========================================================================= -->
+  <!-- Top Navigation & Status Bar                                              -->
+  <!-- ========================================================================= -->
+  <nav class="navbar navbar-custom py-2">
+    <div class="container-fluid px-3">
+      <div class="navbar-brand">
+        <div class="brand-icon">📻</div>
+        <div>
+          <div class="fw-bold fs-6">Media Researcher & AI Analyzer</div>
+          <div class="small text-muted" style="font-size: 0.75rem;">GPL-3.0 | Zero-Trust Scraper & Synthesis Engine
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex align-items-center gap-2">
+        <span id="geminiStatusBadge" class="badge bg-secondary">
+          <span class="spinner-border spinner-border-sm me-1" style="width: 0.65rem; height: 0.65rem;"></span>
+          Gemini AI...
+        </span>
+        <span id="dbStatusBadge" class="badge bg-secondary">DB: Checking</span>
+        <span class="badge bg-dark border border-secondary text-muted">v1.0.0</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ========================================================================= -->
+  <!-- Main Application Workspace                                               -->
+  <!-- ========================================================================= -->
+  <main class="container-fluid p-3 flex-grow-1">
+    <div class="row g-3">
+
+      <!-- ===================================================================== -->
+      <!-- Linke Spalte: Recherche-Archiv (Sidebar)                              -->
+      <!-- ===================================================================== -->
+      <aside class="col-12 col-lg-3 col-xl-2">
+        <div class="card card-custom h-100">
+          <div class="card-header card-header-custom d-flex justify-content-between align-items-center">
+            <span>📚 Archiv</span>
+            <span id="archiveCountBadge" class="badge bg-primary rounded-pill">0</span>
+          </div>
+          <div class="p-2 border-bottom border-secondary">
+            <input type="text" id="archiveSearchInput" class="form-control form-control-sm"
+              placeholder="Kanal filtern...">
+          </div>
+          <div class="card-body p-2 overflow-auto" style="max-height: calc(100vh - 210px);" id="archiveList">
+            <div class="text-center text-muted p-3 small" id="archiveEmptyNotice">
+              Noch keine Kanäle importiert. Gib oben eine URL ein.
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- ===================================================================== -->
+      <!-- Mittlere Spalte: Scraper-Panel & Episoden-Explorer                    -->
+      <!-- ===================================================================== -->
+      <section class="col-12 col-lg-5 col-xl-6 d-flex flex-column gap-3">
+
+        <!-- Scraper Input Hero -->
+        <div class="hero-input-container">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <label for="mediaUrlInput" class="form-label mb-0 fw-bold">
+              ⚡ Neuen Medienkanal / Podcast erfassen
+            </label>
+            <span class="small text-muted">YouTube (@Kanal/Playlist), RSS 2.0, Apple Podcasts</span>
+          </div>
+
+          <form id="scrapeForm">
+            <div class="input-group mb-2">
+              <input type="url" id="mediaUrlInput" class="form-control"
+                placeholder="https://www.youtube.com/@Kanal, RSS-Feed oder Apple Podcast URL" required
+                autocomplete="off">
+              <button type="submit" id="scrapeSubmitBtn" class="btn btn-primary px-3">
+                <span id="scrapeSpinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+                <span id="scrapeBtnText">Erfassen & Analysieren</span>
+              </button>
+            </div>
+
+            <div class="d-flex flex-wrap align-items-center justify-content-between small text-muted">
+              <div class="d-flex align-items-center gap-3">
+                <div class="d-flex align-items-center gap-1">
+                  <span>Max. Folgen:</span>
+                  <select id="importLimitSelect" class="form-select form-select-sm"
+                    style="width: auto; padding-right: 1.75rem;">
+                    <option value="25">25</option>
+                    <option value="50" selected>50</option>
+                    <option value="100">100</option>
+                    <option value="200">200</option>
+                  </select>
+                </div>
+                <div class="form-check form-check-inline m-0">
+                  <input class="form-check-input" type="checkbox" id="fetchTranscriptsCheck">
+                  <label class="form-check-label" for="fetchTranscriptsCheck">Transkripte direkt laden</label>
+                </div>
+              </div>
+              <div id="urlPlatformDetectBadge" class="badge bg-secondary d-none">Auto-Erkennung</div>
+            </div>
+
+            <!-- Fortschrittsbalken -->
+            <div id="scrapeProgressBarContainer" class="progress mt-2 d-none">
+              <div class="progress-bar progress-bar-striped progress-bar-animated w-100" role="progressbar">
+                Daten werden sicher geladen & verarbeitet...
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <!-- Aktiver Podcast Banner -->
+        <div id="activePodcastCard" class="card card-custom d-none">
+          <div class="card-body p-3">
+            <div class="d-flex gap-3">
+              <img id="activePodcastImage" src="" alt="Cover" class="rounded"
+                style="width: 80px; height: 80px; object-fit: cover; background: #1e293b;"
+                onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'80\' height=\'80\' viewBox=\'0 0 80 80\'%3E%3Crect fill=\'%23334155\' width=\'80\' height=\'80\'/%3E%3Ctext fill=\'%2394a3b8\' x=\'50%25\' y=\'50%25\' text-anchor=\'middle\' dominant-baseline=\'middle\' font-size=\'24\'%3E📻%3C/text%3E%3C/svg%3E'">
+              <div class="flex-grow-1 overflow-hidden">
+                <div class="d-flex justify-content-between align-items-start">
+                  <div>
+                    <h5 id="activePodcastTitle" class="mb-1 text-truncate">Kanal-Titel</h5>
+                    <div class="small text-muted d-flex align-items-center gap-2">
+                      <span id="activePodcastPlatformBadge" class="badge bg-primary">YouTube</span>
+                      <span id="activePodcastAuthor">Autor</span>
+                      <span>•</span>
+                      <span id="activePodcastEpCount">0 Folgen</span>
+                    </div>
+                  </div>
+                  <button id="deleteActivePodcastBtn" class="btn btn-outline-danger btn-sm"
+                    title="Kanal aus Archiv löschen">
+                    🗑️ Löschen
+                  </button>
+                </div>
+                <p id="activePodcastDescription" class="small text-muted mt-2 mb-0 text-truncate"
+                  style="max-height: 40px;">
+                  Beschreibung...
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Episoden Explorer Tabelle -->
+        <div class="card card-custom flex-grow-1">
+          <div class="card-header card-header-custom d-flex justify-content-between align-items-center">
+            <span class="fw-bold">📋 Episoden-Explorer</span>
+            <input type="text" id="episodeFilterInput" class="form-control form-control-sm" style="max-width: 200px;"
+              placeholder="Episoden suchen...">
+          </div>
+          <div class="card-body p-0 episode-table-container">
+            <div class="table-responsive">
+              <table class="table table-custom table-hover">
+                <thead>
+                  <tr>
+                    <th style="width: 50px;">#</th>
+                    <th>Titel</th>
+                    <th style="width: 110px;">Datum</th>
+                    <th style="width: 80px;">Dauer</th>
+                    <th style="width: 140px;">Inhalte</th>
+                    <th style="width: 130px; text-align: right;">Aktion</th>
+                  </tr>
+                </thead>
+                <tbody id="episodesTableBody">
+                  <tr>
+                    <td colspan="6" class="text-center text-muted p-4">
+                      Wähle einen Podcast aus dem Archiv oder importiere einen neuen Feed.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ===================================================================== -->
+      <!-- Rechte Spalte: Gemini Recherche-Labor & Export Center                 -->
+      <!-- ===================================================================== -->
+      <section class="col-12 col-lg-4 col-xl-4">
+        <div class="card card-custom h-100 d-flex flex-column">
+          <div class="card-header card-header-custom p-2">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active py-1 px-2 small" id="tab-wikitext" data-bs-toggle="tab"
+                  data-bs-target="#pane-wikitext" type="button" role="tab">
+                  📊 Wikipedia
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link py-1 px-2 small" id="tab-summary" data-bs-toggle="tab"
+                  data-bs-target="#pane-summary" type="button" role="tab">
+                  📑 Summary
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link py-1 px-2 small" id="tab-guests" data-bs-toggle="tab"
+                  data-bs-target="#pane-guests" type="button" role="tab">
+                  👥 Gäste & Themen
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link py-1 px-2 small" id="tab-qa" data-bs-toggle="tab" data-bs-target="#pane-qa"
+                  type="button" role="tab">
+                  🔍 Q&A
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link py-1 px-2 small" id="tab-chat" data-bs-toggle="tab" data-bs-target="#pane-chat"
+                  type="button" role="tab">
+                  💬 Chat
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link py-1 px-2 small" id="tab-export" data-bs-toggle="tab"
+                  data-bs-target="#pane-export" type="button" role="tab">
+                  💾 Export
+                </button>
+              </li>
+            </ul>
+          </div>
+
+          <div class="card-body p-3 tab-content flex-grow-1 overflow-auto">
+
+            <!-- Tab 1: Wikipedia Wikitext -->
+            <div class="tab-pane fade show active" id="pane-wikitext" role="tabpanel">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="fw-bold small text-info">MediaWiki Episodentabelle</span>
+                <div class="d-flex gap-1">
+                  <button id="genWikitextBtn" class="btn btn-primary btn-sm">
+                    ✨ Generieren
+                  </button>
+                  <button id="copyWikitextBtn" class="btn btn-outline-secondary btn-sm"
+                    title="In Zwischenablage kopieren">
+                    📋 Kopieren
+                  </button>
+                </div>
+              </div>
+              <p class="small text-muted mb-2">
+                Erstellt eine standardkonforme <code>{| class="wikitable sortable"</code> Tabelle mit Titel, Datum,
+                Dauer und Kurzzusammenfassung.
+              </p>
+              <div id="wikitextOutput" class="output-code-container">
+                Klicke auf "Generieren", um die Wikipedia-Tabelle via Gemini AI zu erstellen...
+              </div>
+            </div>
+
+            <!-- Tab 2: Executive Summary -->
+            <div class="tab-pane fade" id="pane-summary" role="tabpanel">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="fw-bold small text-info">Kanalprofil & Executive Summary</span>
+                <button id="genSummaryBtn" class="btn btn-primary btn-sm">
+                  ✨ Analysieren
+                </button>
+              </div>
+              <p class="small text-muted mb-2">
+                Erstellt ein übergeordnetes Profil: Ausrichtung, Tonalität, Top-Themenfelder und zentrale Takeaways.
+              </p>
+              <div id="summaryOutput" class="output-code-container">
+                Klicke auf "Analysieren", um eine Executive Summary via Gemini AI zu erstellen...
+              </div>
+            </div>
+
+            <!-- Tab 3: Gäste & Themen -->
+            <div class="tab-pane fade" id="pane-guests" role="tabpanel">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="fw-bold small text-info">Gäste-, Rollen- & Themenprofil</span>
+                <button id="genGuestsBtn" class="btn btn-primary btn-sm">
+                  ✨ Extrahieren
+                </button>
+              </div>
+              <p class="small text-muted mb-2">
+                Identifiziert Personen, Experten, behandelte Thesen und Schlüssel-Diskussionspunkte.
+              </p>
+              <div id="guestsOutput" class="output-code-container">
+                Klicke auf "Extrahieren", um Gäste und Themenschwerpunkte zu analysieren...
+              </div>
+            </div>
+
+            <!-- Tab 3: Semantisches Q&A -->
+            <div class="tab-pane fade" id="pane-qa" role="tabpanel">
+              <span class="fw-bold small text-info d-block mb-2">Fragen an den Kanal stellen</span>
+              <form id="qaForm" class="mb-2">
+                <div class="input-group">
+                  <input type="text" id="qaInput" class="form-control form-control-sm"
+                    placeholder="z.B. Was wurde über Thema X gesagt?" required>
+                  <button type="submit" id="qaSubmitBtn" class="btn btn-primary btn-sm">Fragen</button>
+                </div>
+              </form>
+              <div id="qaOutput" class="output-code-container">
+                Stelle eine Frage zu den Show Notes oder Transkripten der Episoden...
+              </div>
+            </div>
+
+            <!-- Tab 4: Freier KI-Recherche-Chat -->
+            <div class="tab-pane fade" id="pane-chat" role="tabpanel">
+              <span class="fw-bold small text-info d-block mb-2">Freier KI-Recherche-Assistent</span>
+              <form id="chatForm" class="mb-2">
+                <div class="input-group">
+                  <input type="text" id="chatInput" class="form-control form-control-sm"
+                    placeholder="Gib eine Recherche-Anweisung ein..." required>
+                  <button type="submit" id="chatSubmitBtn" class="btn btn-primary btn-sm">Senden</button>
+                </div>
+              </form>
+              <div id="chatOutput" class="output-code-container">
+                Schreibe einen beliebigen Analyseauftrag (z.B. "Vergleiche Folge 1 und Folge 3")...
+              </div>
+            </div>
+
+            <!-- Tab 5: Export Center -->
+            <div class="tab-pane fade" id="pane-export" role="tabpanel">
+              <span class="fw-bold small text-info d-block mb-2">Recherche-Daten herunterladen</span>
+              <p class="small text-muted mb-3">
+                Exportiere alle erfassten Folgen, Show Notes und Zeitstempel in verschiedenen Formaten:
+              </p>
+              <div class="d-grid gap-2">
+                <button class="btn btn-outline-primary btn-sm d-flex justify-content-between align-items-center"
+                  onclick="app.exportData('json')">
+                  <span>📄 JSON Daten-Export</span>
+                  <span class="badge bg-secondary">.json</span>
+                </button>
+                <button class="btn btn-outline-primary btn-sm d-flex justify-content-between align-items-center"
+                  onclick="app.exportData('csv')">
+                  <span>📊 CSV Tabellen-Export</span>
+                  <span class="badge bg-secondary">.csv</span>
+                </button>
+                <button class="btn btn-outline-primary btn-sm d-flex justify-content-between align-items-center"
+                  onclick="app.exportData('markdown')">
+                  <span>📝 Markdown Dokument</span>
+                  <span class="badge bg-secondary">.md</span>
+                </button>
+                <button class="btn btn-outline-primary btn-sm d-flex justify-content-between align-items-center"
+                  onclick="app.exportData('wikitext')">
+                  <span>🌐 Wikipedia Wikitext</span>
+                  <span class="badge bg-secondary">.txt</span>
+                </button>
+                <button class="btn btn-outline-info btn-sm d-flex justify-content-between align-items-center"
+                  onclick="app.exportData('gemtext')">
+                  <span>♊ Geminispace Gemtext</span>
+                  <span class="badge bg-info text-dark">.gmi</span>
+                </button>
+                <button class="btn btn-outline-warning btn-sm d-flex justify-content-between align-items-center"
+                  onclick="app.exportData('gopher')">
+                  <span>📜 Gopherspace Gophermap</span>
+                  <span class="badge bg-warning text-dark">RFC 1436</span>
+                </button>
+              </div>
+
+              <!-- Webspace Publisher Panel -->
+              <div class="mt-4 pt-3 border-top border-secondary">
+                <span class="fw-bold small text-info d-block mb-1">🚀 Webspace Publisher</span>
+                <p class="small text-muted mb-2">
+                  Publiziert das gesamte Archiv synchronisiert als verlinkte Webspaces in <code>public/gemini</code> und <code>public/gopher</code>.
+                </p>
+                <button class="btn btn-primary btn-sm w-100 mb-2" id="publishWebspacesBtn" onclick="app.publishWebspaces()">
+                  <span id="publishSpinner" class="spinner-border spinner-border-sm d-none me-1" role="status"></span>
+                  <span>✨ In public/gemini &amp; public/gopher publizieren</span>
+                </button>
+                <div id="publishStatusBadge" class="small text-muted text-center" style="font-size: 0.78rem;">
+                  Bereit zum Publizieren
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- ========================================================================= -->
+  <!-- Episode Detail Drawer (Offcanvas)                                         -->
+  <!-- ========================================================================= -->
+  <div class="drawer-backdrop" id="drawerBackdrop"></div>
+  <aside class="custom-drawer" id="episodeDrawer">
+    <div class="drawer-header">
+      <div class="overflow-hidden me-2">
+        <h6 id="drawerEpisodeTitle" class="mb-0 text-truncate text-info">Episoden-Details</h6>
+        <div id="drawerEpisodeSub" class="small text-muted">Folge # | Datum</div>
+      </div>
+      <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="offcanvas"
+        onclick="app.closeDrawer()">✕</button>
+    </div>
+
+    <div class="drawer-body">
+      <!-- Metadaten Badges -->
+      <div class="d-flex flex-wrap gap-2 mb-3" id="drawerBadges">
+        <!-- Dynamisch eingefügte Badges -->
+      </div>
+
+      <!-- Drawer Tabs: Show Notes / Kapitel / Transkript -->
+      <ul class="nav nav-tabs mb-3 border-secondary" id="drawerTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active small py-1 px-3" data-bs-toggle="tab" data-bs-target="#drawer-notes"
+            type="button">
+            📝 Show Notes
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link small py-1 px-3" data-bs-toggle="tab" data-bs-target="#drawer-chapters" type="button">
+            ⏱️ Kapitel
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link small py-1 px-3" data-bs-toggle="tab" data-bs-target="#drawer-transcript"
+            type="button">
+            📜 Transkript
+          </button>
+        </li>
+      </ul>
+
+      <div class="tab-content">
+        <!-- Show Notes Pane -->
+        <div class="tab-pane fade show active" id="drawer-notes">
+          <div id="drawerNotesContent" class="small text-muted" style="white-space: pre-wrap; line-height: 1.6;">
+            Keine Show Notes verfügbar.
+          </div>
+        </div>
+
+        <!-- Kapitel Pane -->
+        <div class="tab-pane fade" id="drawer-chapters">
+          <div id="drawerChaptersList">
+            <div class="text-muted small">Keine Kapitelmarken vorhanden.</div>
+          </div>
+        </div>
+
+        <!-- Transkript Pane -->
+        <div class="tab-pane fade" id="drawer-transcript">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="small text-muted" id="drawerTranscriptStatus">Transkript-Status</span>
+            <button id="drawerFetchTranscriptBtn" class="btn btn-primary btn-sm">Transkript laden</button>
+          </div>
+          <div id="drawerTranscriptSegments" class="overflow-auto" style="max-height: 400px;">
+            <div class="text-muted small">Kein Transkript geladen. Klicke auf "Transkript laden".</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ========================================================================= -->
+  <!-- Toast Notifier                                                            -->
+  <!-- ========================================================================= -->
+  <div id="toastContainer"></div>
+
+  <!-- ========================================================================= -->
+  <!-- Footer                                                                    -->
+  <!-- ========================================================================= -->
+  <footer>
+    <div class="container-fluid px-3 d-flex justify-content-between align-items-center">
+      <div>
+        <strong>Podcast & Media Channel Researcher & AI Analyzer</strong> • Lizenziert unter
+        <a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noopener"
+          class="text-info text-decoration-none">GNU GPL v3.0</a>
+      </div>
+      <div class="text-muted small">
+        Architektur: Security &gt; Performance &gt; Usability (ADR-0001)
+      </div>
+    </div>
+  </footer>
+
+  <!-- Lokale Scripts -->
+  <script src="/vendor/bootstrap.bundle.min.js"></script>
+  <script src="/app.js"></script>
+</body>
+
+</html>
