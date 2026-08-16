@@ -22,7 +22,23 @@ Das Projekt ist ein asynchrones Python-Backend zur Recherche, Zusammenfassung un
 
 ---
 
-## 2. Unabdingbare Sicherheits- & Architektur-Regeln (ADR-0001 & ADR-0002)
+## 2. Struktur der Living Agent Documentation (`.agents/`)
+
+Agenten orientieren sich an der Wissens- und Regelhierarchie im Verzeichnis `.agents/`:
+
+- **Systemarchitektur**: [.agents/ARCHITECTURE.md](file:///.agents/ARCHITECTURE.md) (4-Schichten-Modell, Scraper-Adapter, Datenfluss)
+- **Kontext & Status**: [.agents/CONTEXT.md](file:///.agents/CONTEXT.md) (Projektstatus, Entwicklungsstand)
+- **Architekturentscheidungen (`.agents/DECISIONS/`)**:
+  - [ADR-0001](file:///.agents/DECISIONS/ADR-0001-security-first.md): Security-First-Prinzip (SSRF-Schutz, `defusedxml`, CSP)
+  - [ADR-0002](file:///.agents/DECISIONS/ADR-0002-modular-scraper-adapter.md): Modulares Scraper-Adapter-Pattern
+  - [ADR-0003](file:///.agents/DECISIONS/ADR-0003-single-file-commits.md): Granulare Single-File Commits auf Englisch
+  - [ADR-0004](file:///.agents/DECISIONS/ADR-0004-unabbreviated-file-extensions.md): Explizite ungekürzte Dateiendungen (`.yaml` statt `.yml`)
+- **Regeln (`.agents/rules/`)**: `commit_policy.md`, `file_conventions.md`, `python_backend.md`, `security_standards.md`, `spdx_license.md`
+- **Skills (`.agents/skills/`)**: `export-spaces`, `run-tests`, `security-audit`, `validate-gemtext`, `verify-spdx`
+
+---
+
+## 3. Unabdingbare Sicherheits- & Architektur-Regeln (ADR-0001 & ADR-0002)
 
 1. **Zero Secrets in Version Control (ADR-0001)**:
    - Niemals API-Keys, Passwörter, Token oder echte Zugangsdaten in Quellcodedateien oder Commits einbetten.
@@ -43,7 +59,7 @@ Das Projekt ist ein asynchrones Python-Backend zur Recherche, Zusammenfassung un
 
 ---
 
-## 3. Lizenzierung & SPDX-Pflicht
+## 4. Lizenzierung & SPDX-Pflicht
 
 - Das gesamte Repository steht unter der **GNU General Public License v3.0 or later (GPL-3.0-or-later)**.
 - **Jede** neu erstellte Quellcodedatei (`.py`, `.js`, `.sh`, `.editorconfig`, `.ruff.toml`, etc.) muss den folgenden SPDX-Header in den ersten Zeilen tragen:
@@ -62,7 +78,7 @@ Das Projekt ist ein asynchrones Python-Backend zur Recherche, Zusammenfassung un
 
 ---
 
-## 4. Git Commit-Strategie (ADR-0003)
+## 5. Git Commit-Strategie (ADR-0003)
 
 - **Granulare Single-File Commits**: Jede Dateiänderung bzw. Neuerstellung wird in einem separaten Commit committet.
 - **Sprache**: Commit-Messages werden stets in **englischer Sprache** verfasst.
@@ -70,7 +86,7 @@ Das Projekt ist ein asynchrones Python-Backend zur Recherche, Zusammenfassung un
 
 ---
 
-## 5. Ungekürzte Dateiendungen (ADR-0004)
+## 6. Ungekürzte Dateiendungen (ADR-0004)
 
 - **Standardkonforme Endungen**: Es sind stets vollwertige, ungekürzte Dateiendungen zu verwenden.
 - **YAML**: Ausschließlich `.yaml` (z.B. `docker-compose.yaml`, `.github/workflows/*.yaml`, `.github/dependabot.yaml`). Die veraltete Form `.yml` ist unzulässig.
@@ -78,7 +94,14 @@ Das Projekt ist ein asynchrones Python-Backend zur Recherche, Zusammenfassung un
 
 ---
 
-## 6. Qualitätsprüfung & Verifikationsbefehle
+## 7. Saubere Diagnosen & Scout-Regel (`@current_problems`)
+
+- **Null-Warnungen-Ziel**: Bei jeder Aufgabe sind sämtliche Compiler-, Linter- und Markdownlint-Warnungen auf den neu erstellten oder geänderten Dateien zu beheben.
+- **Kein Scope-Creep**: Bestehende Warnungen in unberührten Altdateien werden belassen, es sei denn, ein globaler Cleanup ist explizit beauftragt.
+
+---
+
+## 8. Qualitätsprüfung & Verifikationsbefehle
 
 Vor dem Abschluss einer Aufgabe sind folgende Verifikationsschritte auszuführen:
 
