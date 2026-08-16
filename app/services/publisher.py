@@ -12,7 +12,11 @@ from pathlib import Path
 from typing import Any
 
 from app.config import settings
-from app.exporters.gemini import generate_gemtext_index, generate_gemtext_podcast
+from app.exporters.gemini import (
+    generate_gemtext_feed,
+    generate_gemtext_index,
+    generate_gemtext_podcast,
+)
 from app.exporters.gopher import generate_gophermap_index, generate_gophermap_podcast
 from app.exporters.utils import safe_slug
 from app.models import Podcast
@@ -47,11 +51,17 @@ class WebspacePublisher:
         gemini_files = []
         gopher_files = []
 
-        # 1. Geminispace: Index (index.gmi)
+        # 1. Geminispace: Index (index.gmi) & Feed (feed.gmi)
         gemini_index_content = generate_gemtext_index(podcasts)
         gemini_index_path = self.gemini_dir / "index.gmi"
         gemini_index_path.write_text(gemini_index_content, encoding="utf-8")
         gemini_files.append("index.gmi")
+
+        gemini_feed_content = generate_gemtext_feed(podcasts)
+        gemini_feed_path = self.gemini_dir / "feed.gmi"
+        gemini_feed_path.write_text(gemini_feed_content, encoding="utf-8")
+        gemini_files.append("feed.gmi")
+
 
         # 2. Gopherspace: Index (gophermap)
         gopher_index_content = generate_gophermap_index(
