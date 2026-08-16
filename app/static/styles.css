@@ -263,6 +263,62 @@ body {
   to { transform: translateX(0); opacity: 1; }
 }
 
+/* Probe Preview Card & Confirmation Modal */
+.probe-preview-card {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  border: 1px solid var(--accent-cyan);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(56, 189, 248, 0.15);
+  animation: fadeInDown 0.25s ease-out;
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Transcript Search & Timestamp Chips */
+.search-result-item {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  margin-bottom: 0.5rem;
+  transition: all 0.15s ease;
+}
+.search-result-item:hover {
+  background: rgba(56, 189, 248, 0.06);
+  border-color: var(--accent-cyan);
+}
+
+.timestamp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  border-radius: 4px;
+  background-color: rgba(56, 189, 248, 0.15);
+  color: var(--accent-cyan);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  text-decoration: none;
+}
+.timestamp-chip:hover {
+  background-color: var(--accent-cyan);
+  color: #020617;
+  text-decoration: none;
+}
+
+.search-highlight {
+  background-color: rgba(234, 179, 8, 0.35);
+  color: #fef08a;
+  padding: 0 2px;
+  border-radius: 2px;
+  font-weight: bold;
+}
+
 /* Footer */
 footer {
   margin-top: auto;
@@ -272,3 +328,4 @@ footer {
   font-size: 0.85rem;
   color: var(--text-muted);
 }
+
