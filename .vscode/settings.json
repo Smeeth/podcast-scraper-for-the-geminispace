@@ -1,0 +1,121 @@
+{
+  // Python Interpreter & Virtual Environment
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
+  "python.terminal.activateEnvironment": true,
+
+  // Language Server & Static Type Checking (Pyright / Pylance)
+  "python.analysis.typeCheckingMode": "basic",
+  "python.analysis.autoImportCompletions": true,
+  "python.analysis.indexing": true,
+  "python.analysis.packageIndexDepths": [
+    {
+      "name": "fastapi",
+      "depth": 3
+    },
+    {
+      "name": "pydantic",
+      "depth": 3
+    },
+    {
+      "name": "sqlalchemy",
+      "depth": 3
+    }
+  ],
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}"
+  ],
+
+  // Formatter & Linter Configuration (Ruff)
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit",
+      "source.fixAll": "explicit"
+    }
+  },
+
+  // Test Discovery & Runner (Unittest / Pytest)
+  "python.testing.unittestEnabled": true,
+  "python.testing.unittestArgs": [
+    "-v",
+    "-s",
+    "tests",
+    "-p",
+    "test_*.py"
+  ],
+  "python.testing.pytestEnabled": false,
+  "python.testing.pytestArgs": [
+    "tests"
+  ],
+
+  // File Hygiene & Line Endings
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "files.eol": "\n",
+  "files.encoding": "utf8",
+
+  // File Associations
+  "files.associations": {
+    "*.gmi": "markdown",
+    "gophermap": "plaintext",
+    ".env*": "dotenv",
+    "Dockerfile*": "dockerfile",
+    "docker-compose*.yml": "dockercompose",
+    ".editorconfig": "ini",
+    ".ruff.toml": "toml",
+    ".pytest.ini": "ini",
+    "GEMINI.md": "markdown",
+    "AGENTS.md": "markdown"
+  },
+
+  // File Nesting for Clean Explorer View
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.expand": false,
+  "explorer.fileNesting.patterns": {
+    ".env": ".env.*, .env.example",
+    "Dockerfile": ".dockerignore, docker-compose*.yml",
+    "requirements.txt": "requirements*.txt, pyproject.toml, pyrightconfig.json, .ruff.toml, .pytest.ini, .editorconfig",
+    "README.md": "LICENSE, ARCHITECTURE.md, CONTEXT.md, GEMINI.md, AGENTS.md",
+    "*.py": "${capture}.pyi"
+  },
+
+  // Files & Search Excludes (Optimizes Performance & Search Results)
+  "files.exclude": {
+    "**/.git": true,
+    "**/.svn": true,
+    "**/.hg": true,
+    "**/CVS": true,
+    "**/.DS_Store": true,
+    "**/Thumbs.db": true,
+    "**/__pycache__": true,
+    "**/*.pyc": true,
+    "**/.pytest_cache": true,
+    "**/.ruff_cache": true,
+    "**/.mypy_cache": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/.venv": true,
+    "**/__pycache__": true,
+    "**/.pytest_cache": true,
+    "**/.ruff_cache": true,
+    "**/.mypy_cache": true,
+    "**/pgdata": true,
+    "**/appdata": true,
+    "**/data": true,
+    "**/.git": true,
+    "**/public/gemini/*.gmi": true,
+    "**/public/gopher/*": true
+  },
+  "files.watcherExclude": {
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/.venv/**": true,
+    "**/__pycache__/**": true,
+    "**/.pytest_cache/**": true,
+    "**/.ruff_cache/**": true,
+    "**/pgdata/**": true,
+    "**/data/**": true
+  }
+}
