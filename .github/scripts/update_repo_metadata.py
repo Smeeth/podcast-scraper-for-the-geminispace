@@ -6,11 +6,11 @@ Automatisches Skript zum Aktualisieren der GitHub-Repository-Metadaten
 (Description & Topics) über die GitHub REST API oder GitHub CLI.
 """
 
+import json
 import os
 import sys
-import json
-import urllib.request
 import urllib.error
+import urllib.request
 
 REPO_OWNER = "Smeeth"
 REPO_NAME = "podcast-scraper-for-the-geminispace"
@@ -59,7 +59,7 @@ def update_via_api(token: str):
     repo_data = json.dumps({"description": DESCRIPTION}).encode("utf-8")
     req = urllib.request.Request(repo_url, data=repo_data, headers=headers, method="PATCH")
     try:
-        with urllib.request.urlopen(req) as resp:
+        with urllib.request.urlopen(req):
             print("[ERFOLG] Repository Description erfolgreich aktualisiert.")
     except urllib.error.HTTPError as e:
         print(f"[FEHLER] Description konnte nicht gesetzt werden: HTTP {e.code} ({e.reason})")
@@ -69,7 +69,7 @@ def update_via_api(token: str):
     topics_data = json.dumps({"names": TOPICS}).encode("utf-8")
     req = urllib.request.Request(topics_url, data=topics_data, headers=headers, method="PUT")
     try:
-        with urllib.request.urlopen(req) as resp:
+        with urllib.request.urlopen(req):
             print(f"[ERFOLG] {len(TOPICS)} Topics erfolgreich gesetzt!")
     except urllib.error.HTTPError as e:
         print(f"[FEHLER] Topics konnten nicht gesetzt werden: HTTP {e.code} ({e.reason})")
