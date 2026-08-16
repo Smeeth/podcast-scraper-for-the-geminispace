@@ -4,7 +4,7 @@
 import logging
 from urllib.parse import urlparse
 
-from app.config import is_safe_external_url
+from app.config import is_safe_external_url, sanitize_log_message
 from app.scrapers.base import BaseScraper, ScraperException
 from app.scrapers.rss import RSSScraper
 from app.scrapers.youtube import YouTubeScraper
@@ -28,11 +28,15 @@ class ScraperFactory:
             raise ScraperException("Keine URL angegeben.")
 
         parsed = urlparse(url.strip())
-        netloc = (parsed.netloc or "").lower()
+        hostname = (parsed.hostname or "").lower()
 
-        if "youtube.com" in netloc or "youtu.be" in netloc:
+        if (
+            hostname in ("youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com", "youtu.be")
+            or hostname.endswith(".youtube.com")
+            or hostname.endswith(".youtu.be")
+        ):
             return "youtube"
-        if "podcasts.apple.com" in netloc:
+        if hostname in ("podcasts.apple.com", "itunes.apple.com") or hostname.endswith(".apple.com"):
             return "apple"
         return "rss"
 
@@ -46,11 +50,12 @@ class ScraperFactory:
             raise ScraperException(f"URL durch Sicherheitsfilter blockiert: {error_msg}")
 
         platform = cls.detect_platform(url)
+        safe_url = sanitize_log_message(url)
 
         if platform == "youtube":
-            logger.info(f"Plattform erkannt: YouTube ({url})")
+            logger.info("Plattform erkannt: YouTube (%s)", safe_url)
             return YouTubeScraper()
         if platform in ("apple", "rss"):
-            logger.info(f"Plattform erkannt: {platform.upper()} ({url})")
+            logger.info("Plattform erkannt: %s (%s)", platform.upper(), safe_url)
             return RSSScraper()
         raise ScraperException(f"Kein Scraper für Plattform '{platform}' verfügbar.")
