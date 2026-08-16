@@ -89,20 +89,48 @@ class GeminiAIService:
         self,
         analysis_type: str,
         context: str,
-        custom_query: str | None = None
+        custom_query: str | None = None,
+        style_format: str | None = None,
     ) -> str:
         """
         Erstellt den zielgerichteten Prompt basierend auf dem Analysetyp.
         """
-        if analysis_type == "wikitext_table":
+        if analysis_type in ("wikitext_table", "wikipedia_template"):
+            if style_format == "template" or analysis_type == "wikipedia_template":
+                return f"""Erstelle eine standardkonforme Wikipedia-Episodentabelle im Vorlagen-Format ({{{{Episodentabelle}}}} / {{{{Episodenliste}}}}) für die deutschsprachige Wikipedia.
+
+Format-Vorgaben:
+- Beginne mit:
+{{{{Episodentabelle/Kopf
+| GESAMT = ja
+| TITEL = ja
+| ERSTAUSSTRAHLUNG = ja
+| DAUER = ja
+| ZUSAMMENFASSUNG = ja
+}}}}
+- Verwende für jede Episode:
+{{{{Episodenliste
+| NR_GESAMT = <Nummer>
+| TITEL = <Episodentitel>
+| ERSTAUSSTRAHLUNG = <Datum, z.B. 12. März 2026>
+| DAUER = <Dauer in Min.>
+| ZUSAMMENFASSUNG = <Prägnante Zusammenfassung mit hervorgehobenen Kernargumenten>
+}}}}
+- Schließe mit `|}}` ab.
+- WIKILINKING-PFLICHT: Verlinke bekannte Personen, Parteien, Medien oder Fachbegriffe immer als Wikipedia-Wikilink (z.B. [[Robert Habeck]], [[Bundestag]], [[Klimawandel]]).
+
+KONTEXT-DATEN:
+{context}
+"""
+
             return f"""Erstelle eine standardkonforme Wikipedia-Episodentabelle (MediaWiki Wikitext) für den folgenden Podcast/Kanal.
 
 Format-Vorgaben:
 - Verwende `{{| class="wikitable sortable" style="font-size: 95%;"`.
 - Spalten: `! Nr. !! Titel !! Erstveröffentlichung !! Dauer !! Gäste / Beteiligte !! Kurzzusammenfassung`
-- Extrahiere die Informationen präzise aus dem Kontext.
+- WIKILINKING-PFLICHT: Verlinke bekannte Personen, Institutionen oder Fachbegriffe automatisch mit doppelten eckigen Klammern für die deutschsprachige Wikipedia (z.B. [[Christian Lindner]], [[Robert Habeck]], [[Deutschlandfunk]]).
 - Schließe die Tabelle mit `|}}` ab.
-- Gib AUSSCHLIESSLICH den Wikitext-Codeblock und eine kurze Zusammenfassung aus.
+- Gib AUSSCHLIESSLICH den Wikitext-Codeblock und eine kurze redaktionelle Einleitung aus.
 
 KONTEXT-DATEN:
 {context}
@@ -112,7 +140,7 @@ KONTEXT-DATEN:
             return f"""Analysiere den folgenden Podcast/Kanal und erstelle ein detailliertes Profil aller Gäste, Rollen und Hauptthemen.
 
 Gliedere deine Antwort in:
-1. 👥 **Gäste & Experten:** Name, Funktion/Organisation, behandelte Themen, relevante Zitate/Thesen.
+1. 👥 **Gäste & Experten:** Name (nach Möglichkeit als Wikipedia-Link [[Name]]), Funktion/Organisation, behandelte Themen, relevante Zitate/Thesen.
 2. 📌 **Hauptthemen & Thematische Schwerpunkte:** Zusammenfassung der Kerninhalte nach Episoden.
 3. ⏱️ **Schlüssel-Momente & Kontroversen:** Bemerkenswerte Thesen oder Diskussionspunkte.
 
@@ -161,8 +189,10 @@ KONTEXT-DATEN:
         episodes: list[dict[str, Any]],
         transcript_text: str | None = None,
         custom_query: str | None = None,
-        model_override: str | None = None
+        style_format: str | None = None,
+        model_override: str | None = None,
     ) -> dict[str, Any]:
+
         """
         Führt die KI-Analyse mit Google Gemini asynchron aus.
         """
@@ -182,7 +212,7 @@ KONTEXT-DATEN:
             }
 
         context = self._build_context_text(podcast_info, episodes, transcript_text)
-        prompt = self._build_prompt(analysis_type, context, custom_query)
+        prompt = self._build_prompt(analysis_type, context, custom_query, style_format)
         model_name = model_override or settings.GEMINI_MODEL
 
         def _call_gemini_sync() -> str:
