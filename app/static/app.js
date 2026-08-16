@@ -8,6 +8,7 @@ const app = {
     podcasts: [],
     activePodcast: null,
     activeEpisode: null,
+    currentProbe: null,
     filterQuery: '',
     archiveQuery: '',
     isScraping: false
@@ -20,12 +21,12 @@ const app = {
   },
 
   bindEvents: function () {
-    // Scraper Form
+    // Scraper Form (Stufe 1: Probe)
     const scrapeForm = document.getElementById('scrapeForm');
     if (scrapeForm) {
       scrapeForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        this.handleScrape();
+        this.handleProbe();
       });
     }
 
@@ -54,8 +55,6 @@ const app = {
     }
 
     // AI Lab Buttons
-    document.getElementById('genWikitextBtn')?.addEventListener('click', () => this.runAIAnalysis('wikitext_table'));
-    document.getElementById('copyWikitextBtn')?.addEventListener('click', () => this.copyToClipboard('wikitextOutput'));
     document.getElementById('genSummaryBtn')?.addEventListener('click', () => this.runAIAnalysis('summary'));
     document.getElementById('genGuestsBtn')?.addEventListener('click', () => this.runAIAnalysis('guests_topics'));
 
@@ -90,6 +89,7 @@ const app = {
     // Backdrop click
     document.getElementById('drawerBackdrop')?.addEventListener('click', () => this.closeDrawer());
   },
+
 
   // ===========================================================================
   // System & Health Check
@@ -148,54 +148,118 @@ const app = {
     }
   },
 
-  handleScrape: async function () {
+  handleProbe: async function () {
     const urlInput = document.getElementById('mediaUrlInput');
-    const limitSelect = document.getElementById('importLimitSelect');
-    const fetchTransCheck = document.getElementById('fetchTranscriptsCheck');
     const submitBtn = document.getElementById('scrapeSubmitBtn');
     const spinner = document.getElementById('scrapeSpinner');
     const btnText = document.getElementById('scrapeBtnText');
-    const progBar = document.getElementById('scrapeProgressBarContainer');
+    const probeCard = document.getElementById('probePreviewCard');
 
     const url = urlInput?.value.trim();
     if (!url) return;
 
+    // UI Loading State
+    if (submitBtn) submitBtn.disabled = true;
+    if (spinner) spinner.classList.remove('d-none');
+    if (btnText) btnText.textContent = 'Prüfe...';
+
+    try {
+      const resp = await fetch('/api/probe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      });
+
+      const data = await resp.json();
+      if (!resp.ok) {
+        throw new Error(data.detail || 'Kanal konnte nicht vorab geprüft werden.');
+      }
+
+      this.state.currentProbe = data;
+
+      // Populate preview card
+      const titleEl = document.getElementById('probeTitle');
+      const authorEl = document.getElementById('probeAuthor');
+      const descEl = document.getElementById('probeDescription');
+      const imgEl = document.getElementById('probeImage');
+      const platformBadge = document.getElementById('probePlatformBadge');
+      const countBadge = document.getElementById('probeCountBadge');
+
+      if (titleEl) titleEl.textContent = data.title;
+      if (authorEl) authorEl.textContent = data.author || 'Unbekannt';
+      if (descEl) descEl.textContent = data.description || 'Keine Beschreibung angegeben.';
+      if (imgEl && data.image_url) imgEl.src = data.image_url;
+
+      if (platformBadge) {
+        platformBadge.textContent = data.platform.toUpperCase();
+        platformBadge.className = data.platform === 'youtube' ? 'badge badge-youtube' : (data.platform === 'apple' ? 'badge badge-apple' : 'badge badge-rss');
+      }
+
+      if (countBadge) {
+        countBadge.textContent = data.approx_episodes_count ? `ca. ${data.approx_episodes_count} Folgen verfügbar` : 'Kanal bereit';
+      }
+
+      if (probeCard) probeCard.classList.remove('d-none');
+      this.showToast(`Kanal erkannt: "${data.title}"`, 'info');
+    } catch (err) {
+      this.showToast(err.message, 'danger');
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+      if (spinner) spinner.classList.add('d-none');
+      if (btnText) btnText.textContent = '🔍 Vorab prüfen';
+    }
+  },
+
+  cancelProbe: function () {
+    const probeCard = document.getElementById('probePreviewCard');
+    if (probeCard) probeCard.classList.add('d-none');
+    this.state.currentProbe = null;
+  },
+
+  confirmDeepScan: async function () {
+    const probeData = this.state.currentProbe;
+    if (!probeData) return;
+
+    const limitSelect = document.getElementById('probeLimitSelect');
+    const fetchTransCheck = document.getElementById('probeFetchTranscriptsCheck');
+    const confirmBtn = document.getElementById('probeConfirmBtn');
+    const spinner = document.getElementById('probeDeepScanSpinner');
+    const progBar = document.getElementById('scrapeProgressBarContainer');
+
     const limit = parseInt(limitSelect?.value || '50', 10);
     const fetchTranscripts = !!fetchTransCheck?.checked;
 
-    // UI Loading State
-    this.state.isScraping = true;
-    if (submitBtn) submitBtn.disabled = true;
+    if (confirmBtn) confirmBtn.disabled = true;
     if (spinner) spinner.classList.remove('d-none');
-    if (btnText) btnText.textContent = 'Wird verarbeitet...';
     if (progBar) progBar.classList.remove('d-none');
 
     try {
       const resp = await fetch('/api/scrape', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url, limit, fetch_transcripts: fetchTranscripts })
+        body: JSON.stringify({ url: probeData.url, limit, fetch_transcripts: fetchTranscripts })
       });
 
       const data = await resp.json();
       if (!resp.ok) {
-        throw new Error(data.detail || 'Fehler beim Erfassen des Feeds.');
+        throw new Error(data.detail || 'Fehler beim Tiefenscan.');
       }
 
-      this.showToast(`Erfolgreich erfasst: "${data.title}" (${data.episodes.length} Folgen)`, 'success');
-      urlInput.value = '';
+      this.showToast(`Tiefenscan abgeschlossen: "${data.title}" (${data.episodes.length} Folgen)`, 'success');
+      this.cancelProbe();
+      const urlInput = document.getElementById('mediaUrlInput');
+      if (urlInput) urlInput.value = '';
       await this.fetchArchive();
       await this.selectPodcast(data.id);
     } catch (err) {
       this.showToast(err.message, 'danger');
     } finally {
-      this.state.isScraping = false;
-      if (submitBtn) submitBtn.disabled = false;
+      if (confirmBtn) confirmBtn.disabled = false;
       if (spinner) spinner.classList.add('d-none');
-      if (btnText) btnText.textContent = 'Erfassen & Analysieren';
       if (progBar) progBar.classList.add('d-none');
     }
   },
+
 
   // ===========================================================================
   // Archive Management
@@ -554,7 +618,70 @@ const app = {
     if (chat)     { chat.classList.remove('output-rendered');     chat.textContent = 'Schreibe einen beliebigen Analyseauftrag...'; }
   },
 
-  runAIAnalysis: async function (analysisType, customQuery = null) {
+  generateWikitext: function () {
+    const formatSelect = document.getElementById('wikiFormatSelect');
+    const deltaCheck = document.getElementById('wikiDeltaCheck');
+    const styleFormat = formatSelect?.value || 'wikitable';
+    const onlyNew = !!deltaCheck?.checked;
+    this.runAIAnalysis('wikitext_table', null, styleFormat, onlyNew);
+  },
+
+  copyWikitext: function () {
+    this.copyToClipboard('wikitextOutput');
+  },
+
+  searchTranscripts: async function () {
+    const input = document.getElementById('transcriptSearchInput');
+    const resultsContainer = document.getElementById('transcriptSearchResults');
+    const q = input?.value.trim();
+    if (!q || !resultsContainer) return;
+
+    resultsContainer.innerHTML = '<div class="text-center p-3 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>Durchsuche Transkripte...</div>';
+
+    try {
+      const podId = this.state.activePodcast ? `&podcast_id=${this.state.activePodcast.id}` : '';
+      const resp = await fetch(`/api/search/transcripts?q=${encodeURIComponent(q)}${podId}`);
+      if (!resp.ok) throw new Error('Suche fehlgeschlagen.');
+      const data = await resp.json();
+
+      if (!data.results || data.results.length === 0) {
+        resultsContainer.innerHTML = `<div class="text-muted small p-2">Keine Treffer für "${this.escapeHtml(q)}" gefunden.</div>`;
+        return;
+      }
+
+      resultsContainer.innerHTML = '';
+      const countHeader = document.createElement('div');
+      countHeader.className = 'small text-info fw-bold mb-2';
+      countHeader.textContent = `${data.total_matches} Treffer gefunden:`;
+      resultsContainer.appendChild(countHeader);
+
+      data.results.forEach(res => {
+        const item = document.createElement('div');
+        item.className = 'search-result-item';
+
+        const epNumStr = res.episode_number ? `#${res.episode_number} ` : '';
+        const linkHtml = res.deep_link_url
+          ? `<a href="${res.deep_link_url}" target="_blank" rel="noopener" class="timestamp-chip">▶️ [${res.timestamp_formatted}]</a>`
+          : `<span class="timestamp-chip">[${res.timestamp_formatted}]</span>`;
+
+        const regex = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+        const highlightedSnippet = this.escapeHtml(res.matched_text).replace(regex, '<span class="search-highlight">$1</span>');
+
+        item.innerHTML = `
+          <div class="d-flex justify-content-between align-items-start mb-1">
+            <span class="small fw-bold text-truncate" style="max-width: 220px;" title="${this.escapeHtml(res.episode_title)}">${epNumStr}${this.escapeHtml(res.episode_title)}</span>
+            ${linkHtml}
+          </div>
+          <div class="small text-muted" style="line-height: 1.4;">${highlightedSnippet}</div>
+        `;
+        resultsContainer.appendChild(item);
+      });
+    } catch (err) {
+      resultsContainer.innerHTML = `<div class="text-danger small p-2">Fehler bei der Suche: ${this.escapeHtml(err.message)}</div>`;
+    }
+  },
+
+  runAIAnalysis: async function (analysisType, customQuery = null, styleFormat = null, onlyNew = false) {
     if (!this.state.activePodcast) {
       this.showToast('Bitte wähle zuerst einen Podcast aus dem Archiv.', 'warning');
       return;
@@ -562,11 +689,9 @@ const app = {
 
     let outputEl = null;
     let buttonEl = null;
-    // Wikitext bleibt raw text (für Wikipedia Copy-Paste).
-    // Alle anderen Typen rendern Markdown für bessere Lesbarkeit.
-    const isRawOutput = (analysisType === 'wikitext_table');
+    const isRawOutput = (analysisType === 'wikitext_table' || analysisType === 'wikipedia_template');
 
-    if (analysisType === 'wikitext_table') {
+    if (analysisType === 'wikitext_table' || analysisType === 'wikipedia_template') {
       outputEl = document.getElementById('wikitextOutput');
       buttonEl = document.getElementById('genWikitextBtn');
     } else if (analysisType === 'summary') {
@@ -596,7 +721,9 @@ const app = {
         body: JSON.stringify({
           podcast_id: this.state.activePodcast.id,
           analysis_type: analysisType,
-          custom_query: customQuery
+          custom_query: customQuery,
+          style_format: styleFormat,
+          only_new_episodes: onlyNew
         })
       });
 
@@ -624,6 +751,7 @@ const app = {
       if (buttonEl) buttonEl.disabled = false;
     }
   },
+
 
   copyToClipboard: function (elementId) {
     const el = document.getElementById(elementId);
