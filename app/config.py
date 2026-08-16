@@ -4,7 +4,7 @@
 import ipaddress
 import socket
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import urlsplit, urlunsplit
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -158,29 +158,31 @@ def sanitize_log_message(msg: Any) -> str:
     return clean[:500]
 
 
-def is_safe_external_url(url: str) -> tuple[bool, str]:
+def validate_and_reconstruct_safe_url(url: str) -> tuple[bool, str, str]:
     """
-    Validiert eine externe URL strikt gegen SSRF, bösartige Schemes und private IP-Bereiche.
-    Gibt (is_safe, error_reason) zurück.
+    Validiert eine externe URL strikt gegen SSRF und rekonstruiert sie aus
+    den überprüften Komponenten (CodeQL Taint-Barrier & ADR-0001).
+    Gibt (is_safe, error_reason, safe_reconstructed_url) zurück.
     """
     if not url or not isinstance(url, str):
-        return False, "Ungültige oder leere URL."
+        return False, "Ungültige oder leere URL.", ""
 
     cleaned_url = url.strip()
     if len(cleaned_url) > 2048:
-        return False, "URL überschreitet die maximale Länge von 2048 Zeichen."
+        return False, "URL überschreitet die maximale Länge von 2048 Zeichen.", ""
 
     try:
-        parsed = urlparse(cleaned_url)
+        parts = urlsplit(cleaned_url)
     except Exception as e:
-        return False, f"URL-Parsing fehlgeschlagen: {str(e)}"
+        return False, f"URL-Parsing fehlgeschlagen: {str(e)}", ""
 
-    if parsed.scheme.lower() not in ("http", "https"):
-        return False, f"Unzulässiges URL-Scheme '{parsed.scheme}'. Erlaubt sind nur http:// und https://."
+    scheme = parts.scheme.lower()
+    if scheme not in ("http", "https"):
+        return False, f"Unzulässiges URL-Scheme '{parts.scheme}'. Erlaubt sind nur http:// und https://.", ""
 
-    hostname = parsed.hostname
+    hostname = parts.hostname
     if not hostname:
-        return False, "URL enthält keinen gültigen Hostnamen."
+        return False, "URL enthält keinen gültigen Hostnamen.", ""
 
     hostname_lower = hostname.lower().strip()
 
@@ -191,13 +193,13 @@ def is_safe_external_url(url: str) -> tuple[bool, str]:
         or hostname_lower.endswith(".internal")
         or hostname_lower.endswith(".localhost")
     ):
-        return False, f"Zugriff auf internen Host '{hostname}' ist aus Sicherheitsgründen untersagt (SSRF-Schutz)."
+        return False, f"Zugriff auf internen Host '{hostname}' ist aus Sicherheitsgründen untersagt (SSRF-Schutz).", ""
 
     # IP-Prüfung bei direkter IP-Eingabe (inklusive DWORD/Hex/Oktal Evasion)
     ip_obj = _parse_ip_literal(hostname_lower)
     if ip_obj:
         if _is_ip_blocked(ip_obj):
-            return False, f"IP-Adresse '{ip_obj}' liegt in einem gesperrten Adressbereich (SSRF-Schutz)."
+            return False, f"IP-Adresse '{ip_obj}' liegt in einem gesperrten Adressbereich (SSRF-Schutz).", ""
     else:
         # Domain-Name: DNS-Auflösung zur Überprüfung, ob Domain auf private IP zeigt (DNS-Rebinding Schutz)
         try:
@@ -205,9 +207,26 @@ def is_safe_external_url(url: str) -> tuple[bool, str]:
             for item in addr_info:
                 resolved_ip = ipaddress.ip_address(item[4][0])
                 if _is_ip_blocked(resolved_ip):
-                    return False, f"Domain '{hostname}' löst auf gesperrte IP '{resolved_ip}' auf (SSRF-Schutz)."
+                    return False, f"Domain '{hostname}' löst auf gesperrte IP '{resolved_ip}' auf (SSRF-Schutz).", ""
         except (socket.gaierror, Exception):
-            # DNS-Auflösungsfehler (z.B. Domain nicht erreichbar/offline) ignorieren
+            # DNS-Auflösungsfehler ignorieren
             pass
 
-    return True, ""
+    # Port-Validierung (falls angegeben)
+    netloc = hostname
+    if parts.port:
+        netloc = f"{hostname}:{parts.port}"
+
+    # Rekonstruktion ausschließlich aus validierten Komponenten (Taint-Barrier)
+    safe_reconstructed_url = urlunsplit((scheme, netloc, parts.path, parts.query, ""))
+    return True, "", safe_reconstructed_url
+
+
+def is_safe_external_url(url: str) -> tuple[bool, str]:
+    """
+    Validiert eine externe URL strikt gegen SSRF, bösartige Schemes und private IP-Bereiche.
+    Gibt (is_safe, error_reason) zurück.
+    """
+    is_safe, reason, _ = validate_and_reconstruct_safe_url(url)
+    return is_safe, reason
+
