@@ -7,12 +7,13 @@ Generiert standardkonforme Gemtext-Dokumente für Podcasts und Episoden.
 Alle Medien werden direkt verlinkt (=> URL), ohne Mediendateien lokal herunterzuladen.
 """
 
-from typing import List, Optional
-from app.models import Podcast, Episode
+from collections.abc import Sequence
+
 from app.exporters.utils import safe_slug
+from app.models import Podcast
 
 
-def _clean_gemtext_line(text: Optional[str]) -> str:
+def _clean_gemtext_line(text: str | None) -> str:
     """Bereinigt Textzeilen von Zeilenumbrüchen für sichere Gemtext-Titel und -Links."""
     if not text:
         return ""
@@ -24,7 +25,7 @@ def generate_gemtext_podcast(podcast: Podcast) -> str:
     Erstellt ein vollständiges Gemtext (.gmi) Dokument für einen einzelnen Podcast
     inklusive Metadaten, Episodenliste, Shownotes, Kapitelmarken und direkten Medien-Links.
     """
-    lines: List[str] = [
+    lines: list[str] = [
         f"# 📻 {_clean_gemtext_line(podcast.title)}",
         f"Autor / Kanal: {_clean_gemtext_line(podcast.author or 'Unbekannt')}",
         f"Plattform: {podcast.platform.upper()}",
@@ -45,10 +46,11 @@ def generate_gemtext_podcast(podcast: Podcast) -> str:
                 lines.append(clean_p)
         lines.append("")
 
-    lines.append(f"## 📋 Episoden ({len(podcast.episodes)} Folgen)")
+    episodes = podcast.episodes or []
+    lines.append(f"## 📋 Episoden ({len(episodes)} Folgen)")
     lines.append("")
 
-    for ep in podcast.episodes:
+    for ep in episodes:
         ep_num_str = f"#{ep.episode_number} " if ep.episode_number else ""
         lines.append(f"### {ep_num_str}{_clean_gemtext_line(ep.title)}")
 
@@ -67,13 +69,14 @@ def generate_gemtext_podcast(podcast: Podcast) -> str:
             lines.append(f"=> {ep.audio_or_video_url} ▶️ Folge anhören / ansehen ({ep_num_str.strip() or 'Direktlink'})")
 
         # Kapitelmarken
-        if ep.chapters and len(ep.chapters) > 0:
+        if ep.chapters and isinstance(ep.chapters, list) and len(ep.chapters) > 0:
             lines.append("")
             lines.append("Kapitelmarken:")
             for ch in ep.chapters:
-                time_str = ch.get("start_time_formatted") or f"{int(ch.get('start_time', 0))}s"
-                ch_title = _clean_gemtext_line(ch.get("title", "Kapitel"))
-                lines.append(f"* [{time_str}] {ch_title}")
+                if isinstance(ch, dict):
+                    time_str = ch.get("start_time_formatted") or f"{int(ch.get('start_time', 0))}s"
+                    ch_title = _clean_gemtext_line(ch.get("title", "Kapitel"))
+                    lines.append(f"* [{time_str}] {ch_title}")
 
         # Show Notes Zusammenfassung
         if ep.description:
@@ -91,12 +94,12 @@ def generate_gemtext_podcast(podcast: Podcast) -> str:
     return "\n".join(lines) + "\n"
 
 
-def generate_gemtext_index(podcasts: List[Podcast]) -> str:
+def generate_gemtext_index(podcasts: Sequence[Podcast]) -> str:
     """
     Erstellt die Haupt-Indexdatei (index.gmi) für den Geminispace
     mit einer Übersicht aller archivierten Podcasts und Kanäle.
     """
-    lines: List[str] = [
+    lines: list[str] = [
         "# 📻 Podcast & Media Channel Archive (Geminispace)",
         "Willkommen im dezentralen Podcast- und Medienarchiv für den Geminispace.",
         "Sämtliche Episoden sind als direkte Medien-Links referenziert.",
