@@ -13,7 +13,7 @@ import feedparser
 import httpx
 from defusedxml.common import DefusedXmlException
 
-from app.config import is_safe_external_url, settings
+from app.config import is_safe_external_url, sanitize_log_message, settings
 from app.scrapers.base import (
     BaseScraper,
     ChapterDTO,
@@ -49,7 +49,9 @@ class RSSScraper(BaseScraper):
         apple_metadata = None
         platform = "rss"
 
-        if "podcasts.apple.com" in url:
+        parsed_probe_url = urlparse(url)
+        probe_host = (parsed_probe_url.hostname or "").lower()
+        if probe_host in ("podcasts.apple.com", "itunes.apple.com") or probe_host.endswith(".apple.com"):
             platform = "apple"
             feed_url, apple_metadata = await self._resolve_apple_podcasts_url(url)
 
@@ -64,7 +66,8 @@ class RSSScraper(BaseScraper):
                 resp.raise_for_status()
                 content = resp.text
         except Exception as e:
-            logger.error(f"Fehler beim Probe-Download von {feed_url}: {e}")
+            safe_feed = sanitize_log_message(feed_url)
+            logger.error("Fehler beim Probe-Download von %s: %s", safe_feed, e)
             raise ScraperException(f"Feed konnte nicht geladen werden: {e}") from e
 
         try:
@@ -116,7 +119,13 @@ class RSSScraper(BaseScraper):
             raise ScraperException("Konnte keine gültige Apple Podcast ID in der URL finden.")
 
         podcast_id = match.group(1)
+        if not podcast_id.isdigit():
+            raise ScraperException("Ungültige Apple Podcast ID.")
+
         lookup_url = f"https://itunes.apple.com/lookup?id={podcast_id}&entity=podcast"
+        is_safe, error_msg = is_safe_external_url(lookup_url)
+        if not is_safe:
+            raise ScraperException(f"Sicherheitsblockade (SSRF) für Apple Lookup: {error_msg}")
 
         try:
             async with httpx.AsyncClient(timeout=settings.REQUEST_TIMEOUT_SECONDS, follow_redirects=True) as client:
@@ -132,9 +141,12 @@ class RSSScraper(BaseScraper):
                 if not feed_url:
                     raise ScraperException("Apple Podcast Eintrag enthält keine RSS-Feed-URL.")
 
+                safe_feed = sanitize_log_message(feed_url)
+                logger.info("Apple Podcast aufgelöst: Feed-URL %s", safe_feed)
                 return feed_url, item
         except Exception as e:
-            logger.error(f"Fehler beim Auflösen des Apple Podcasts {url}: {e}")
+            safe_url = sanitize_log_message(url)
+            logger.error("Fehler beim Auflösen des Apple Podcasts %s: %s", safe_url, e)
             raise ScraperException(f"Apple Podcasts Lookup fehlgeschlagen: {str(e)}") from e
 
     def _parse_duration(self, raw_duration: Any) -> int | None:
@@ -150,7 +162,8 @@ class RSSScraper(BaseScraper):
                 return int(parts[0]) * 3600 + int(parts[1]) * 60 + int(float(parts[2]))
             if len(parts) == 2:
                 return int(parts[0]) * 60 + int(float(parts[1]))
-        except ValueError:
+        except (ValueError, TypeError):
+            # Ungültiges Zeitformat (z.B. nicht-numerische Zeichen in Millisekunden) ignorieren
             pass
         return None
 
@@ -177,6 +190,10 @@ class RSSScraper(BaseScraper):
         Lädt den XML-Inhalt herunter und validiert ihn über defusedxml gegen XXE / XML-Bomben.
         Sicherheitsverletzungen (DTD, externe Entities, XML-Bomben) werden hart blockiert.
         """
+        is_safe, error_reason = is_safe_external_url(feed_url)
+        if not is_safe:
+            raise ScraperException(f"Sicherheitsblockade (SSRF): {error_reason}")
+
         async with httpx.AsyncClient(timeout=settings.REQUEST_TIMEOUT_SECONDS, follow_redirects=True) as client:
             resp = await client.get(feed_url, headers=self.client_headers)
             resp.raise_for_status()
@@ -213,7 +230,9 @@ class RSSScraper(BaseScraper):
         Extrahiert Podcast- und Episodendaten aus einem RSS/Atom-Feed oder Apple Podcasts Link.
         """
         apple_metadata = None
-        is_apple = "podcasts.apple.com" in urlparse(url).netloc.lower()
+        parsed_target_url = urlparse(url)
+        target_host = (parsed_target_url.hostname or "").lower()
+        is_apple = target_host in ("podcasts.apple.com", "itunes.apple.com") or target_host.endswith(".apple.com")
 
         if is_apple:
             feed_url, apple_metadata = await self._resolve_apple_podcasts_url(url)
@@ -378,7 +397,8 @@ class RSSScraper(BaseScraper):
         # SSRF-Schutz: Externe Transkript-URLs müssen die Sicherheitsprüfung bestehen
         is_safe, error_msg = is_safe_external_url(episode_external_id_or_url)
         if not is_safe:
-            logger.warning(f"Transkript-URL durch SSRF-Filter blockiert: {episode_external_id_or_url} – {error_msg}")
+            safe_t_url = sanitize_log_message(episode_external_id_or_url)
+            logger.warning("Transkript-URL durch SSRF-Filter blockiert: %s – %s", safe_t_url, error_msg)
             return None
 
         try:
@@ -398,5 +418,6 @@ class RSSScraper(BaseScraper):
                     segments=[]
                 )
         except Exception as e:
-            logger.warning(f"Konnte RSS-Transkript von {episode_external_id_or_url} nicht laden: {e}")
+            safe_t_url = sanitize_log_message(episode_external_id_or_url)
+            logger.warning("Konnte RSS-Transkript von %s nicht laden: %s", safe_t_url, e)
             return None
