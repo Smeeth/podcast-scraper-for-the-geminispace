@@ -80,10 +80,22 @@ class TestFastAPIIntegration(unittest.TestCase):
         resp = self.client.post("/api/scrape", json={"url": "http://2130706433/admin"})
         self.assertEqual(resp.status_code, 422)
 
+    def test_probe_endpoint_ssrf_blocked(self):
+        resp = self.client.post("/api/probe", json={"url": "http://127.0.0.1:8000/feed"})
+        self.assertEqual(resp.status_code, 422)
+
     def test_podcasts_list_empty(self):
         resp = self.client.get("/api/podcasts")
         self.assertEqual(resp.status_code, 200)
         self.assertIsInstance(resp.json(), list)
+
+    def test_search_transcripts_endpoint_empty(self):
+        resp = self.client.get("/api/search/transcripts?q=OpenSource")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["query"], "OpenSource")
+        self.assertEqual(data["total_matches"], 0)
+        self.assertIsInstance(data["results"], list)
 
     def test_export_endpoint_validation(self):
         # Ungültiges Format
@@ -91,7 +103,7 @@ class TestFastAPIIntegration(unittest.TestCase):
         self.assertEqual(resp.status_code, 422)
 
         # Gültige Exportformate (geben 404 für nicht existierenden Podcast, aber kein 422)
-        valid_formats = ["json", "csv", "markdown", "wikitext", "gemtext", "gopher"]
+        valid_formats = ["json", "csv", "markdown", "wikitext", "wikipedia_template", "gemtext", "gopher"]
         for fmt in valid_formats:
             resp = self.client.get(f"/api/export/non-existent-id?format={fmt}")
             self.assertEqual(resp.status_code, 404, f"Format {fmt} sollte akzeptiert werden (404 statt 422)")
@@ -100,7 +112,8 @@ class TestFastAPIIntegration(unittest.TestCase):
         # Nicht existierender Podcast
         resp = self.client.post("/api/ai/analyze", json={
             "podcast_id": "non-existent-id",
-            "analysis_type": "wikitext_table"
+            "analysis_type": "wikitext_table",
+            "style_format": "template"
         })
         self.assertEqual(resp.status_code, 404)
 
@@ -122,3 +135,4 @@ class TestFastAPIIntegration(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
