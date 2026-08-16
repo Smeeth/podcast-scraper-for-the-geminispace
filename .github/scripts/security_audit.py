@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8")
+    getattr(sys.stdout, "reconfigure")(encoding="utf-8")
 
 EXCLUDE_DIRS = {
     ".venv", "venv", "env", "__pycache__", ".git", ".idea", ".vscode",
