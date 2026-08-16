@@ -224,6 +224,13 @@ class TestGeminiExporter(unittest.TestCase):
         self.assertIn("# 📻 Podcast & Media Channel Archive (Geminispace)", index_gmi)
         self.assertIn("=> tech_ai_talk.gmi", index_gmi)
 
+    def test_generate_gemtext_feed(self):
+        from app.exporters.gemini import generate_gemtext_feed
+        feed_content = generate_gemtext_feed([self.pod])
+        self.assertIn("# 📡 Podcast Researcher Geminispace Feed", feed_content)
+        self.assertIn("=> tech_ai_talk.gmi 2026-01-15 - [Tech & AI Talk] Episode 1: Die Zukunft von Open Source", feed_content)
+        self.assertIn("=> https://youtube.com/watch?v=dQw4w9WgXcQ ▶️ Direktlink Audio/Video", feed_content)
+
 
 class TestGopherExporter(unittest.TestCase):
     """Testet den Gopherspace Exporter (RFC 1436 gophermap)."""
@@ -271,6 +278,7 @@ class TestGopherExporter(unittest.TestCase):
         self.assertIn("/gopher_retro_computing", gopher_idx)
 
 
+
 class TestWebspacePublisher(unittest.TestCase):
     """Testet den WebspacePublisher Service und sichere Slug-Generierung."""
 
@@ -315,6 +323,7 @@ class TestWebspacePublisher(unittest.TestCase):
             gopher_dir = Path(temp_dir) / "gopher"
 
             self.assertTrue((gemini_dir / "index.gmi").exists())
+            self.assertTrue((gemini_dir / "feed.gmi").exists())
             self.assertTrue((gemini_dir / "test_publisher.gmi").exists())
             self.assertTrue((gopher_dir / "gophermap").exists())
             self.assertTrue((gopher_dir / "test_publisher" / "gophermap").exists())
@@ -324,3 +333,4 @@ class TestWebspacePublisher(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
