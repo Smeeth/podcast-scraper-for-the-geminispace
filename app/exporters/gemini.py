@@ -8,6 +8,7 @@ Alle Medien werden direkt verlinkt (=> URL), ohne Mediendateien lokal herunterzu
 """
 
 from collections.abc import Sequence
+from typing import Any
 
 from app.exporters.utils import safe_slug
 from app.models import Podcast
@@ -122,5 +123,42 @@ def generate_gemtext_index(podcasts: Sequence[Podcast]) -> str:
             lines.append("")
 
     lines.append("---")
+    lines.append("=> feed.gmi 📡 Neuer Episoden-Feed (Abonnierbar)")
     lines.append("Server-Info: Generiert mit Podcast & Media Channel Researcher & AI Analyzer (GPL-3.0)")
     return "\n".join(lines) + "\n"
+
+
+def generate_gemtext_feed(podcasts: Sequence[Podcast]) -> str:
+    """
+    Erstellt eine standardkonforme Gemtext-Abonnementdatei (feed.gmi),
+    die von Gemini-Browsern (wie Lagrange oder Elaho) als Feed abonniert werden kann.
+    """
+    lines: list[str] = [
+        "# 📡 Podcast Researcher Geminispace Feed",
+        "Neueste Episoden und Updates aus allen archivierten Medienkanälen.",
+        "",
+        "## 🆕 Letzte Episoden",
+        "",
+    ]
+    all_episodes: list[tuple[Any, Podcast, Any]] = []
+    for pod in podcasts:
+        for ep in pod.episodes or []:
+            all_episodes.append((ep.published_at or pod.updated_at, pod, ep))
+
+    # Sortieren nach Datum absteigend
+    all_episodes.sort(key=lambda x: x[0], reverse=True)
+
+    for pub_date, pod, ep in all_episodes[:50]:
+        date_str = pub_date.strftime("%Y-%m-%d") if pub_date else "2026-01-01"
+        pod_title = _clean_gemtext_line(pod.title)
+        ep_title = _clean_gemtext_line(ep.title)
+        slug = safe_slug(pod.title, pod.id)
+        lines.append(f"=> {slug}.gmi {date_str} - [{pod_title}] {ep_title}")
+        if ep.audio_or_video_url:
+            lines.append(f"=> {ep.audio_or_video_url} ▶️ Direktlink Audio/Video")
+        lines.append("")
+
+    lines.append("---")
+    lines.append("=> index.gmi ⬅️ Hauptübersicht aller Kanäle")
+    return "\n".join(lines) + "\n"
+
