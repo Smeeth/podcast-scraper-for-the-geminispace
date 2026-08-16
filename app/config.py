@@ -170,8 +170,12 @@ def is_safe_external_url(url: str) -> tuple[bool, str]:
     hostname_lower = hostname.lower().strip()
 
     # Statische Prüfung auf bekannte interne Hostnamen
-    if hostname_lower in ("localhost", "127.0.0.1", "0.0.0.0", "::1", "metadata.google.internal") or \
-       hostname_lower.endswith(".local") or hostname_lower.endswith(".internal") or hostname_lower.endswith(".localhost"):
+    if (
+        hostname_lower in ("localhost", "127.0.0.1", "0.0.0.0", "::1", "metadata.google.internal")  # nosec B104
+        or hostname_lower.endswith(".local")
+        or hostname_lower.endswith(".internal")
+        or hostname_lower.endswith(".localhost")
+    ):
         return False, f"Zugriff auf internen Host '{hostname}' ist aus Sicherheitsgründen untersagt (SSRF-Schutz)."
 
     # IP-Prüfung bei direkter IP-Eingabe (inklusive DWORD/Hex/Oktal Evasion)
