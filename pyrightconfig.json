@@ -5,6 +5,11 @@
     "app",
     "tests"
   ],
+  "exclude": [
+    "**/__pyrefly_virtual__",
+    "**/__pycache__",
+    ".venv"
+  ],
   "extraPaths": [
     "."
   ]
