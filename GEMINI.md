@@ -69,7 +69,15 @@ Das Projekt ist ein asynchrones Python-Backend zur Recherche, Zusammenfassung un
 
 ---
 
-## 5. Qualitätsprüfung & Verifikationsbefehle
+## 5. Ungekürzte Dateiendungen (ADR-0004)
+
+- **Standardkonforme Endungen**: Es sind stets vollwertige, ungekürzte Dateiendungen zu verwenden.
+- **YAML**: Ausschließlich `.yaml` (z.B. `docker-compose.yaml`, `.github/workflows/*.yaml`, `.github/dependabot.yaml`). Die veraltete Form `.yml` ist unzulässig.
+- **HTML & Dokumente**: Standardmäßig `.html`, `.md`, `.js`, `.json`.
+
+---
+
+## 6. Qualitätsprüfung & Verifikationsbefehle
 
 Vor dem Abschluss einer Aufgabe sind folgende Verifikationsschritte auszuführen:
 
