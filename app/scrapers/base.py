@@ -65,6 +65,18 @@ class PodcastDTO:
     episodes: list[EpisodeDTO] = field(default_factory=list)
 
 
+@dataclass
+class ProbeResultDTO:
+    platform: str
+    title: str
+    url: str
+    author: str | None = None
+    description: str | None = None
+    image_url: str | None = None
+    approx_episodes_count: int | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
 class ScraperException(Exception):
     """Basis-Ausnahme für Scraper-Fehler."""
     pass
@@ -74,6 +86,14 @@ class BaseScraper(ABC):
     """
     Abstrakte Basisklasse für Plattform-Scraper (ADR-0002).
     """
+
+    @abstractmethod
+    async def probe_feed(self, url: str) -> ProbeResultDTO:
+        """
+        Führt eine sekundenschnelle Vorab-Prüfung des Feeds/Kanals durch (ADR-0005).
+        Liest nur Basis-Metadaten und geschätzte Episodenzahl ohne Tiefenscan.
+        """
+        pass
 
     @abstractmethod
     async def extract_podcast_and_episodes(
@@ -93,3 +113,4 @@ class BaseScraper(ABC):
         Extrahiert das Transkript für eine spezifische Episode.
         """
         pass
+
