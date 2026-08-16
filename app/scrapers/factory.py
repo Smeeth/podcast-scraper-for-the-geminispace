@@ -3,10 +3,11 @@
 
 import logging
 from urllib.parse import urlparse
+
 from app.config import is_safe_external_url
 from app.scrapers.base import BaseScraper, ScraperException
-from app.scrapers.youtube import YouTubeScraper
 from app.scrapers.rss import RSSScraper
+from app.scrapers.youtube import YouTubeScraper
 
 logger = logging.getLogger(__name__)
 
@@ -31,10 +32,9 @@ class ScraperFactory:
 
         if "youtube.com" in netloc or "youtu.be" in netloc:
             return "youtube"
-        elif "podcasts.apple.com" in netloc:
+        if "podcasts.apple.com" in netloc:
             return "apple"
-        else:
-            return "rss"
+        return "rss"
 
     @classmethod
     def get_scraper_for_url(cls, url: str) -> BaseScraper:
@@ -50,8 +50,7 @@ class ScraperFactory:
         if platform == "youtube":
             logger.info(f"Plattform erkannt: YouTube ({url})")
             return YouTubeScraper()
-        elif platform in ("apple", "rss"):
+        if platform in ("apple", "rss"):
             logger.info(f"Plattform erkannt: {platform.upper()} ({url})")
             return RSSScraper()
-        else:
-            raise ScraperException(f"Kein Scraper für Plattform '{platform}' verfügbar.")
+        raise ScraperException(f"Kein Scraper für Plattform '{platform}' verfügbar.")
