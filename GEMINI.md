@@ -34,19 +34,20 @@ Agenten orientieren sich an der Wissens- und Regelhierarchie im Verzeichnis `.ag
   - [ADR-0003](file:///.agents/DECISIONS/ADR-0003-single-file-commits.md): Granulare Single-File Commits auf Englisch
   - [ADR-0004](file:///.agents/DECISIONS/ADR-0004-unabbreviated-file-extensions.md): Explizite ungekürzte Dateiendungen (`.yaml` statt `.yml`)
 - **Regeln (`.agents/rules/`)**: `commit_policy.md`, `file_conventions.md`, `python_backend.md`, `security_standards.md`, `spdx_license.md`
-- **Skills (`.agents/skills/`)**: `export-spaces`, `run-tests`, `security-audit`, `validate-gemtext`, `verify-spdx`
+- **Skills (`.agents/skills/`)**: `export-spaces`, `github-security`, `run-tests`, `security-audit`, `validate-gemtext`, `verify-spdx`
 
 ---
 
 ## 3. Unabdingbare Sicherheits- & Architektur-Regeln (ADR-0001 & ADR-0002)
 
-1. **Zero Secrets in Version Control (ADR-0001)**:
+1. **Zero Secrets & GitHub Security API (ADR-0001)**:
    - Niemals API-Keys, Passwörter, Token oder echte Zugangsdaten in Quellcodedateien oder Commits einbetten.
    - Alle Konfigurationen müssen über Umgebungsvariablen (`.env` basierend auf `.env.example`) via Pydantic `Settings` geladen werden.
+   - Der in `.env` hinterlegte `GITHUB_TOKEN` wird für automatisierte Sicherheitsprüfungen (CodeQL, Dependabot, Secret Scanning) genutzt.
 
 2. **SSRF-Schutz (Server-Side Request Forgery)**:
-   - Jede externe URL **muss** vor dem Abruf durch `app.config.is_safe_external_url(url)` validiert werden.
-   - Private IP-Bereiche (RFC 1918), Loopback (`127.0.0.1`), Link-Local (`169.254.169.254`) und verbotene Protokolle (`file://`, `ftp://`, etc.) sind strikt geblockt.
+   - Jede externe URL **muss** vor dem Abruf durch `app.config.validate_and_reconstruct_safe_url(url)` validiert und als CodeQL-Taint-Barrier reassembliert werden.
+   - Private IP-Bereiche (RFC 1918), Loopback (`127.0.0.1`), Link-Local (`169.254.169.254`), Cloud-Metadata (`metadata.google.internal`) und verbotene Protokolle (`file://`, `ftp://`, etc.) sind strikt geblockt.
 
 3. **Sicheres XML- & Feed-Parsing**:
    - Für das Parsen von XML-Feeds ist **ausschließlich** `defusedxml` zu verwenden, um XML Entity Expansion (Billion Laughs) und XXE-Angriffe zu verhindern.
@@ -96,8 +97,13 @@ Agenten orientieren sich an der Wissens- und Regelhierarchie im Verzeichnis `.ag
 
 ## 7. Saubere Diagnosen & Scout-Regel (`@current_problems`)
 
-- **Null-Warnungen-Ziel**: Bei jeder Aufgabe sind sämtliche Compiler-, Linter- und Markdownlint-Warnungen auf den neu erstellten oder geänderten Dateien zu beheben.
-- **Kein Scope-Creep**: Bestehende Warnungen in unberührten Altdateien werden belassen, es sei denn, ein globaler Cleanup ist explizit beauftragt.
+- **Null-Warnungen-Ziel**: Bei jeder Aufgabe sind sämtliche Compiler-, Linter-, Typcheck- (`pyright`) und Markdownlint-Warnungen auf den neu erstellten oder geänderten Dateien zu beheben.
+- **Diagnose-Automatisierung**: Vor dem Abschluss jeder Aufgabe wird `@current_problems` automatisiert geprüft:
+  * Pyright: `0 errors, 0 warnings`
+  * Ruff: `All checks passed!`
+  * Bandit: `No issues identified`
+  * Test-Suite: `OK` (100% Tests bestanden)
+  * GitHub Security: `0 offene Alerts`
 
 ---
 
@@ -117,20 +123,38 @@ Vor dem Abschluss einer Aufgabe sind folgende Verifikationsschritte auszuführen
    python .github/scripts/security_audit.py
    ```
 
-3. **Automatisierte Tests ausführen**:
+3. **GitHub Security Alerts prüfen (CodeQL, Dependabot, Secrets)**:
 
    ```bash
-   pytest tests -v
+   python .github/scripts/check_github_security.py
    ```
 
-4. **Gemtext-Validierung**:
+4. **Gemtext- & Gophermap-Validierung**:
 
    ```bash
    python .github/scripts/gemtext_validator.py
    ```
 
-5. **Code-Qualität & Linting**:
+5. **Code-Qualität & Linting (Ruff)**:
 
    ```bash
    ruff check app tests .github/scripts
+   ```
+
+6. **SAST Security-Scan (Bandit)**:
+
+   ```bash
+   bandit -r app -ll -ii
+   ```
+
+7. **Statischer Typcheck (Pyright)**:
+
+   ```bash
+   pyright app tests .github/scripts
+   ```
+
+8. **Automatisierte Tests ausführen**:
+
+   ```bash
+   python -m unittest discover -s tests -v
    ```
