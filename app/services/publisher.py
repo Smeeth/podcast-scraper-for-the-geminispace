@@ -6,17 +6,16 @@ Webspace Publisher Service für Geminispace (public/gemini) und Gopherspace (pub
 Generiert statische .gmi- und gophermap-Dateien direkt im Dateisystem.
 """
 
-import os
-import re
 import logging
+from collections.abc import Sequence
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import Any
 
-from app.models import Podcast
+from app.config import settings
 from app.exporters.gemini import generate_gemtext_index, generate_gemtext_podcast
 from app.exporters.gopher import generate_gophermap_index, generate_gophermap_podcast
 from app.exporters.utils import safe_slug
-from app.config import settings
+from app.models import Podcast
 
 logger = logging.getLogger(__name__)
 
@@ -27,21 +26,18 @@ class WebspacePublisher:
     in die Webspaces `public/gemini` und `public/gopher`.
     """
 
-    def __init__(self, base_dir: Path | str | None = None):
-        if base_dir:
-            self.base_dir = Path(base_dir)
-        else:
-            self.base_dir = Path(__file__).resolve().parent.parent.parent / settings.PUBLIC_DIR
-
-        self.gemini_dir = self.base_dir / "gemini"
-        self.gopher_dir = self.base_dir / "gopher"
+    def __init__(self, public_dir: Path | str | None = None, base_dir: Path | str | None = None):
+        target = public_dir or base_dir or settings.PUBLIC_DIR
+        self.public_dir = Path(target)
+        self.gemini_dir = self.public_dir / "gemini"
+        self.gopher_dir = self.public_dir / "gopher"
 
     def ensure_directories(self) -> None:
-        """Erstellt die Zielverzeichnisse public/gemini und public/gopher, falls nicht existent."""
+        """Stellt sicher, dass die Ausgabe-Verzeichnisse existieren."""
         self.gemini_dir.mkdir(parents=True, exist_ok=True)
         self.gopher_dir.mkdir(parents=True, exist_ok=True)
 
-    def publish_all(self, podcasts: List[Podcast]) -> Dict[str, Any]:
+    def publish_all(self, podcasts: Sequence[Podcast]) -> dict[str, Any]:
         """
         Generiert alle Gemtext- und Gophermap-Dateien im Zielverzeichnis.
         Gibt eine Zusammenfassung der erstellten Dateien zurück.
@@ -100,7 +96,7 @@ class WebspacePublisher:
             "gopher_index": str(gopher_index_path),
         }
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """Ermittelt den aktuellen Status der publizierten Webspaces."""
         gemini_count = 0
         gopher_count = 0
