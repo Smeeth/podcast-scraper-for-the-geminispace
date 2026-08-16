@@ -4,7 +4,7 @@
 import ipaddress
 import socket
 from urllib.parse import urlparse
-from typing import List, Optional, Tuple
+
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     )
 
     # Gemini AI
-    GEMINI_API_KEY: Optional[str] = Field(
+    GEMINI_API_KEY: str | None = Field(
         default=None,
         description="Google Gemini API-Key für KI-Analysen"
     )
@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = Field(default="INFO")
     MAX_EPISODES_PER_IMPORT: int = Field(default=100, ge=1, le=500)
     REQUEST_TIMEOUT_SECONDS: int = Field(default=30, ge=5, le=120)
-    CORS_ORIGINS: List[str] = Field(
+    CORS_ORIGINS: list[str] = Field(
         default=["http://localhost:8000", "http://127.0.0.1:8000"]
     )
 
@@ -66,7 +66,7 @@ class Settings(BaseSettings):
 
     def get_masked_gemini_key(self) -> str:
         """Gibt den maskierten API-Key zurück, um Secrets in Logs/UIs niemals zu exponieren."""
-        if not self.is_gemini_available():
+        if not self.GEMINI_API_KEY or not self.is_gemini_available():
             return "NICHT KONFIGURIERT"
         key = self.GEMINI_API_KEY.strip()
         if len(key) <= 8:
@@ -108,16 +108,12 @@ def _is_ip_blocked(ip_obj: ipaddress.IPv4Address | ipaddress.IPv6Address) -> boo
     """Prüft, ob eine IP-Adresse in einem geblockten / privaten / Loopback-Bereich liegt."""
     if ip_obj.is_loopback or ip_obj.is_private or ip_obj.is_link_local or ip_obj.is_reserved or ip_obj.is_multicast or ip_obj.is_unspecified:
         return True
-    if isinstance(ip_obj, ipaddress.IPv6Address) and ip_obj.ipv4_mapped:
-        if _is_ip_blocked(ip_obj.ipv4_mapped):
-            return True
-    for net in BLOCKED_IP_NETWORKS:
-        if ip_obj in net:
-            return True
-    return False
+    if isinstance(ip_obj, ipaddress.IPv6Address) and ip_obj.ipv4_mapped and _is_ip_blocked(ip_obj.ipv4_mapped):
+        return True
+    return any(ip_obj in net for net in BLOCKED_IP_NETWORKS)
 
 
-def _parse_ip_literal(host: str) -> Optional[ipaddress.IPv4Address | ipaddress.IPv6Address]:
+def _parse_ip_literal(host: str) -> ipaddress.IPv4Address | ipaddress.IPv6Address | None:
     """
     Parst IP-Literale in Standard-, Dezimal- (DWORD), Hex- oder Oktalnotation.
     Verhindert typische SSRF-Bypass-Tricks wie http://2130706433/ oder http://0x7f000001.
@@ -133,7 +129,7 @@ def _parse_ip_literal(host: str) -> Optional[ipaddress.IPv4Address | ipaddress.I
         packed = socket.inet_aton(host)
         if len(packed) == 4 and (host.count(".") > 0 or host.isdigit() or host.lower().startswith("0x")):
             return ipaddress.IPv4Address(packed)
-    except (socket.error, OverflowError, ValueError):
+    except (OSError, OverflowError, ValueError):
         pass
 
     # Direkte Integer- oder Hex-Repräsentation
@@ -147,7 +143,7 @@ def _parse_ip_literal(host: str) -> Optional[ipaddress.IPv4Address | ipaddress.I
     return None
 
 
-def is_safe_external_url(url: str) -> Tuple[bool, str]:
+def is_safe_external_url(url: str) -> tuple[bool, str]:
     """
     Validiert eine externe URL strikt gegen SSRF, bösartige Schemes und private IP-Bereiche.
     Gibt (is_safe, error_reason) zurück.
