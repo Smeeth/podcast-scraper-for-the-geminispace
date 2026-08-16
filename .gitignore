@@ -126,6 +126,8 @@ downloads/
 !.vscode/launch.json
 !.vscode/extensions.json
 .vscode/*.log
+*__pyrefly_virtual__*
+.pyrefly/
 *.swp
 *.swo
 *~
