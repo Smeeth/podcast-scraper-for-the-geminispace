@@ -91,9 +91,12 @@ def main() -> int:
             if res.status_code == 200:
                 alerts = res.json()
                 print(f"[INFO] Secret Scanning: {len(alerts)} offene Alerts.")
-                for a in alerts:
+                for alert in alerts:
                     total_issues += 1
-                    print(f"  - Alert #{a.get('number')}: {a.get('secret_type_display_name')}")
+                    alert_id = int(alert.get("number", 0))
+                    alert_state = str(alert.get("state", "open")).strip()
+                    # CWE-532 / CodeQL: Prevent logging dynamic secret scanning fields in console
+                    print(f"  - Secret Alert #{alert_id} [Status: {alert_state}]")
             elif res.status_code == 404:
                 print("[INFO] Secret Scanning: Keine Alerts.")
             elif res.status_code == 403:
