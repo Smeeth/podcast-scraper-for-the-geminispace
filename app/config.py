@@ -3,6 +3,7 @@
 
 import ipaddress
 import socket
+from typing import Any
 from urllib.parse import urlparse
 
 from pydantic import Field, field_validator
@@ -122,6 +123,7 @@ def _parse_ip_literal(host: str) -> ipaddress.IPv4Address | ipaddress.IPv6Addres
     try:
         return ipaddress.ip_address(host)
     except ValueError:
+        # Keine standardkonforme IP-Notation, weiter mit alternativen Notationen
         pass
 
     # C-Socket / inet_aton Notation (z.B. 0177.0.0.1, 2130706433, 0x7f000001)
@@ -130,6 +132,7 @@ def _parse_ip_literal(host: str) -> ipaddress.IPv4Address | ipaddress.IPv6Addres
         if len(packed) == 4 and (host.count(".") > 0 or host.isdigit() or host.lower().startswith("0x")):
             return ipaddress.IPv4Address(packed)
     except (OSError, OverflowError, ValueError):
+        # Keine gültige C-Socket / inet_aton IP-Notation
         pass
 
     # Direkte Integer- oder Hex-Repräsentation
@@ -138,9 +141,21 @@ def _parse_ip_literal(host: str) -> ipaddress.IPv4Address | ipaddress.IPv6Addres
         if 0 <= val <= 0xFFFFFFFF:
             return ipaddress.IPv4Address(val)
     except (ValueError, TypeError):
+        # Keine gültige Integer- oder Hexadezimal-IP-Repräsentation
         pass
 
     return None
+
+
+def sanitize_log_message(msg: Any) -> str:
+    """
+    Entfernt Steuerzeichen (CR, LF, Tab) und maskiert potenziell gefährliche Zeichen
+    aus Benutzereingaben zur Verhinderung von Log-Injection / Log-Forging (CWE-117).
+    """
+    if msg is None:
+        return ""
+    clean = str(msg).replace("\r", " ").replace("\n", " ").replace("\t", " ").strip()
+    return clean[:500]
 
 
 def is_safe_external_url(url: str) -> tuple[bool, str]:
@@ -192,6 +207,7 @@ def is_safe_external_url(url: str) -> tuple[bool, str]:
                 if _is_ip_blocked(resolved_ip):
                     return False, f"Domain '{hostname}' löst auf gesperrte IP '{resolved_ip}' auf (SSRF-Schutz)."
         except (socket.gaierror, Exception):
+            # DNS-Auflösungsfehler (z.B. Domain nicht erreichbar/offline) ignorieren
             pass
 
     return True, ""
