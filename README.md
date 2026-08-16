@@ -8,8 +8,8 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![SQLAlchemy 2.0](https://img.shields.io/badge/SQLAlchemy-2.0%20Async-D71F00.svg?logo=sqlalchemy&logoColor=white)](https://www.sqlalchemy.org/)
 [![Gemini AI](https://img.shields.io/badge/Google%20Gemini-2.5%20Flash%20%2F%20Pro-8E75B2.svg?logo=google&logoColor=white)](https://ai.google.dev/)
-[![Spaces: Gemini & Gopher](https://img.shields.io/badge/Syndication-Geminispace%20%26%20Gopherspace-00bcd4.svg)](#-geminispace--gopherspace-syndikation)
-[![Security: ADR-0001](https://img.shields.io/badge/Security-Security%20%3E%20Performance-red.svg)](#-sicherheitsarchitektur-adr-0001)
+[![Spaces: Gemini & Gopher](https://img.shields.io/badge/Syndication-Geminispace%20%26%20Gopherspace-00bcd4.svg)](.agents/skills/export-spaces/SKILL.md)
+[![Security: ADR-0001](https://img.shields.io/badge/Security-Security%20%3E%20Performance-red.svg)](.agents/DECISIONS/ADR-0001-security-first.md)
 
 Eine modulare, asynchrone und sicherheitsgehärtete Plattform zur **automatisierten Recherche, Transkript-Analyse, Wikipedia-Synthese** und **retro-futuristischen Veröffentlichung** von Medienkanälen (YouTube, RSS-Feeds, Apple Podcasts) im **Geminispace** (`.gmi`) und **Gopherspace** (`gophermap`).
 
@@ -34,27 +34,33 @@ Das Projekt löst das Problem, dass Podcasts und YouTube-Kanäle reich an Wissen
 ```
 
 ### 1. 2-Stufen-Erfassung (Vorab-Check ➔ Tiefenscan)
+
 - **Stufe 1 (Probe):** Bei Eingabe einer URL prüft das Backend in Sekundenbruchteilen (`< 1s`), ob der Kanal existiert, und zeigt ein Info-Kärtchen mit Cover, Kanalbetreiber und geschätzter Episodenanzahl.
 - **Stufe 2 (Konfigurierbarer Tiefenscan):** Der Nutzer entscheidet selbst über die Import-Tiefe (z. B. 25, 50, 100 oder alle Episoden) und ob Volltext-Transkripte mit Zeitstempeln geladen werden sollen.
 
 ### 2. Zero-Media-Storage-Prinzip (Reine Wissens- & Textdatenbank)
+
 - Es werden **weder Gigabytes an Videodateien noch MP3s** auf dem Server oder Datenträger gespeichert.
 - Das System extrahiert und persistiert ausschließlich strukturierte Metadaten: Show Notes, Episodennummern, Veröffentlichungsdaten, Kapitelmarken, Transkriptsegmente und direkte Quellverlinkungen (`audio_or_video_url`).
 
 ### 3. Wikipedia- & Episodenlisten-Synthese
+
 - **MediaWiki Wikitable (`{| class="wikitable sortable" ... |}`):** Standardtabelle mit Titel, Datum, Dauer und Kurzzusammenfassungen.
 - **Offizielle Wikipedia-Vorlage (`{{Episodenliste}}` / `{{Episodentabelle}}`):** Standardkonforme Vorlagenstruktur der deutschsprachigen Wikipedia.
 - **Automatisches Wiki-Linking:** Google Gemini identifiziert automatisch relevante Personen, Interviewpartner und Fachbegriffe und setzt Wikipedia-Wikilinks (`[[Name]]`).
 - **Delta-Modus:** Ermöglicht die isolierte Aufbereitung nur der neuesten Folgen zur einfachen manuellen Aktualisierung bestehender Wikipedia-Artikel.
 
 ### 4. Transkript-Recherche & YouTube-Deep-Links
+
 - Sekundengenaue Volltextsuche über alle archivierten Folgen.
 - Treffer werden mit Textauszug und klickbaren Zeitstempel-Chips (`▶️ [04:23]`) dargestellt, die direkt zur entsprechenden Sekunde auf YouTube springen (`&t=263s`).
 
 ### 5. Geminispace & Gopherspace Syndikation
+
 - **Geminispace (`.gmi`):** Generiert Kapsel-Seiten und einen abonnierbaren Feed (`feed.gmi`) für Gemini-Browser (Lagrange, Elaho, Kristall).
 - **Gopherspace (`gophermap`):** RFC-1436-konforme Menübäume für klassische Gopher-Clients.
 - **Webspace Publisher:** Automatische Synchronisation aller archivierten Kanäle nach `public/gemini/` und `public/gopher/`.
+
 
 ---
 
@@ -184,15 +190,19 @@ GOPHER_PORT=70
 Die erzeugten Kapsel-Dateien können direkt mit gängigen Daemons ausgeliefert werden:
 
 1. **Gemini Server (z. B. Agate, Molly-Brown):**
+
    ```bash
    agate --content public/gemini/ --hostname mein-gemini-server.de
    ```
+
 2. **Gopher Server (z. B. Geomyidae, Gophernicus):**
+
    ```bash
    geomyidae -d public/gopher/ -p 70 -h mein-gopher-server.de
    ```
 
 ---
+
 
 ## 🧪 Qualitätssicherung & Verifikation
 
