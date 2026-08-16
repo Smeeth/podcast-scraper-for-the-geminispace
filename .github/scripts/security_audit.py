@@ -6,8 +6,8 @@ Sicherheits-Audit-Skript für Git-Pre-Commit und GitHub Actions (ADR-0001).
 Sucht nach potenziell hardgecodeten Secrets, unsicherem XML-Parsing und ungeschützten Endpunkten.
 """
 
-import sys
 import re
+import sys
 from pathlib import Path
 
 if hasattr(sys.stdout, "reconfigure"):
