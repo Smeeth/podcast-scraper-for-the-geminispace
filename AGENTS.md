@@ -28,6 +28,7 @@ Autonomous agents must orient themselves using the following dedicated documenta
   - [spdx_license.md](file:///.agents/rules/spdx_license.md): GPL-3.0 SPDX header rules
 - **Specialized Skills (`.agents/skills/`)**:
   - `export-spaces`: Publishing reports to Geminispace (`.gmi`) and Gopherspace (`gophermap`)
+  - `github-security`: Querying and triaging GitHub Security reports (CodeQL, Dependabot, Secret Scanning) via `GITHUB_TOKEN` from `.env`
   - `run-tests`: Running test suite and troubleshooting test failures
   - `security-audit`: Scanning for SSRF vulnerabilities, raw XML parsers, and leaked secrets
   - `validate-gemtext`: Validating Gemtext protocol syntax and Gophermaps
@@ -40,9 +41,9 @@ Autonomous agents must orient themselves using the following dedicated documenta
 1. **GPL-3.0 SPDX License**: Every source, script, or configuration file must include the SPDX identifier:
    `SPDX-License-Identifier: GPL-3.0-or-later`
 2. **Security First (ADR-0001)**:
-   - Validate external URLs with `app.config.is_safe_external_url` prior to making network requests.
+   - Validate external URLs with `app.config.validate_and_reconstruct_safe_url` prior to making network requests.
    - Parse XML feeds exclusively with `defusedxml`.
-   - Never commit `.env` or plain-text secrets.
+   - Never commit `.env` or plain-text secrets. Use `.env` `GITHUB_TOKEN` dynamically for GitHub security audits.
    - Bundle all frontend dependencies locally (no external CDNs).
 3. **Async Architecture & Scraper Modularity (ADR-0002)**:
    - Use Python 3.11 `asyncio`, FastAPI async handlers, and SQLAlchemy 2.0 async sessions.
@@ -52,11 +53,15 @@ Autonomous agents must orient themselves using the following dedicated documenta
 5. **Explicit File Extensions (ADR-0004)**:
    - Always use full, standard extensions (`.yaml`, `.html`, `.md`, `.js`, `.json`). Never use `.yml` or `.htm`.
 6. **Clean Diagnostics & Scout Rule (`@current_problems`)**:
-   - Ensure zero compiler, linter, or markdownlint warnings on all newly created or modified files.
-   - Leave modified files cleaner than you found them without scope creep into untouched legacy modules.
+   - Ensure zero compiler, linter, typecheck (`pyright`), or markdownlint warnings on all newly created or modified files.
+   - Always verify `@current_problems` before finishing any task: Pyright (0 errors), Ruff (0 warnings), Bandit (0 issues), Unit Tests (100% pass).
 7. **Quality Gate Verification**:
    - Run verification scripts and test suite before finalizing changes:
      - `python .github/scripts/verify_spdx_headers.py`
      - `python .github/scripts/security_audit.py`
+     - `python .github/scripts/check_github_security.py`
      - `python .github/scripts/gemtext_validator.py`
-     - `pytest tests -v`
+     - `ruff check app tests .github/scripts`
+     - `bandit -r app -ll -ii`
+     - `pyright app tests .github/scripts`
+     - `python -m unittest discover -s tests -v`
