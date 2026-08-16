@@ -99,11 +99,11 @@ Agenten orientieren sich an der Wissens- und Regelhierarchie im Verzeichnis `.ag
 
 - **Null-Warnungen-Ziel**: Bei jeder Aufgabe sind sämtliche Compiler-, Linter-, Typcheck- (`pyright`) und Markdownlint-Warnungen auf den neu erstellten oder geänderten Dateien zu beheben.
 - **Diagnose-Automatisierung**: Vor dem Abschluss jeder Aufgabe wird `@current_problems` automatisiert geprüft:
-  * Pyright: `0 errors, 0 warnings`
-  * Ruff: `All checks passed!`
-  * Bandit: `No issues identified`
-  * Test-Suite: `OK` (100% Tests bestanden)
-  * GitHub Security: `0 offene Alerts`
+  - Pyright: `0 errors, 0 warnings`
+  - Ruff: `All checks passed!`
+  - Bandit: `No issues identified`
+  - Test-Suite: `OK` (100% Tests bestanden)
+  - GitHub Security: `0 offene Alerts`
 
 ---
 
