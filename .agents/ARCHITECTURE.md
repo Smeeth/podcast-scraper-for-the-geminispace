@@ -64,7 +64,7 @@ graph TD
   - `episodes`: Episodendaten, Show Notes, Kapitelmarken in JSONB, externe IDs.
   - `transcripts`: Zeitstempelbasierte Segmente in JSONB, Volltext und Sprachcode.
   - `ai_analyses`: Gespeicherte Analysen und Prompts pro Kanal/Episode.
-- **Flexibilität:** Standardmäßig via isoliertem `postgres:16-alpine` Container in `docker-compose.yml`, umschaltbar auf jede externe PostgreSQL-Instanz via `DATABASE_URL`.
+- **Flexibilität:** Standardmäßig via isoliertem `postgres:16-alpine` Container in `docker-compose.yaml`, umschaltbar auf jede externe PostgreSQL-Instanz via `DATABASE_URL`.
 
 ## 3. Datenfluss & Schnittstellen
 
