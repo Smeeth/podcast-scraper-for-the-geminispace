@@ -54,10 +54,11 @@ Das Projekt ist ein asynchrones Python-Backend zur Recherche, Zusammenfassung un
 ```
 
 - In Markdown-Dateien:
-```markdown
-<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
-<!-- Copyright (C) 2026 Podcast & Media Channel Researcher Contributors -->
-```
+
+  ```markdown
+  <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+  <!-- Copyright (C) 2026 Podcast & Media Channel Researcher Contributors -->
+  ```
 
 ---
 
@@ -82,22 +83,31 @@ Das Projekt ist ein asynchrones Python-Backend zur Recherche, Zusammenfassung un
 Vor dem Abschluss einer Aufgabe sind folgende Verifikationsschritte auszuführen:
 
 1. **SPDX-Header prüfen**:
+
    ```bash
    python .github/scripts/verify_spdx_headers.py
    ```
+
 2. **Sicherheits-Audit ausführen**:
+
    ```bash
    python .github/scripts/security_audit.py
    ```
+
 3. **Automatisierte Tests ausführen**:
+
    ```bash
    pytest tests -v
    ```
+
 4. **Gemtext-Validierung**:
+
    ```bash
    python .github/scripts/gemtext_validator.py
    ```
+
 5. **Code-Qualität & Linting**:
+
    ```bash
    ruff check app tests .github/scripts
    ```
