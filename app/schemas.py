@@ -2,8 +2,10 @@
 # Copyright (C) 2026 Podcast & Media Channel Researcher Contributors
 
 from datetime import datetime
-from typing import List, Optional, Any, Dict
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
 from app.config import is_safe_external_url
 
 
@@ -17,7 +19,7 @@ class ScrapeRequest(BaseModel):
         min_length=5,
         max_length=2048
     )
-    limit: Optional[int] = Field(
+    limit: int | None = Field(
         default=50,
         ge=1,
         le=500,
@@ -43,7 +45,7 @@ class ScrapeRequest(BaseModel):
 class ChapterItem(BaseModel):
     title: str
     start_time: float = Field(..., ge=0)
-    start_time_formatted: Optional[str] = None
+    start_time_formatted: str | None = None
 
 
 class TranscriptSegmentItem(BaseModel):
@@ -55,9 +57,9 @@ class TranscriptSegmentItem(BaseModel):
 class TranscriptResponse(BaseModel):
     id: str
     episode_id: str
-    language: Optional[str] = "de"
+    language: str | None = "de"
     full_text: str
-    segments: List[TranscriptSegmentItem] = []
+    segments: list[TranscriptSegmentItem] = []
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -69,14 +71,14 @@ class TranscriptResponse(BaseModel):
 class EpisodeSummaryResponse(BaseModel):
     id: str
     podcast_id: str
-    external_id: Optional[str] = None
+    external_id: str | None = None
     title: str
-    episode_number: Optional[int] = None
-    published_at: Optional[datetime] = None
-    duration_seconds: Optional[int] = None
+    episode_number: int | None = None
+    published_at: datetime | None = None
+    duration_seconds: int | None = None
     has_transcript: bool = False
     has_chapters: bool = False
-    audio_or_video_url: Optional[str] = None
+    audio_or_video_url: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -84,16 +86,16 @@ class EpisodeSummaryResponse(BaseModel):
 class EpisodeDetailResponse(BaseModel):
     id: str
     podcast_id: str
-    external_id: Optional[str] = None
+    external_id: str | None = None
     title: str
-    episode_number: Optional[int] = None
-    published_at: Optional[datetime] = None
-    duration_seconds: Optional[int] = None
-    description: Optional[str] = None
-    audio_or_video_url: Optional[str] = None
-    chapters: List[Dict[str, Any]] = []
-    metadata_json: Optional[Dict[str, Any]] = None
-    transcript: Optional[TranscriptResponse] = None
+    episode_number: int | None = None
+    published_at: datetime | None = None
+    duration_seconds: int | None = None
+    description: str | None = None
+    audio_or_video_url: str | None = None
+    chapters: list[dict[str, Any]] = []
+    metadata_json: dict[str, Any] | None = None
+    transcript: TranscriptResponse | None = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -107,10 +109,10 @@ class PodcastSummaryResponse(BaseModel):
     platform: str
     title: str
     url: str
-    feed_url: Optional[str] = None
-    author: Optional[str] = None
-    description: Optional[str] = None
-    image_url: Optional[str] = None
+    feed_url: str | None = None
+    author: str | None = None
+    description: str | None = None
+    image_url: str | None = None
     episode_count: int = 0
     created_at: datetime
     updated_at: datetime
@@ -123,12 +125,12 @@ class PodcastDetailResponse(BaseModel):
     platform: str
     title: str
     url: str
-    feed_url: Optional[str] = None
-    author: Optional[str] = None
-    description: Optional[str] = None
-    image_url: Optional[str] = None
-    metadata_json: Optional[Dict[str, Any]] = None
-    episodes: List[EpisodeSummaryResponse] = []
+    feed_url: str | None = None
+    author: str | None = None
+    description: str | None = None
+    image_url: str | None = None
+    metadata_json: dict[str, Any] | None = None
+    episodes: list[EpisodeSummaryResponse] = []
     created_at: datetime
     updated_at: datetime
 
@@ -140,16 +142,16 @@ class PodcastDetailResponse(BaseModel):
 # ==============================================================================
 class AIAnalysisRequest(BaseModel):
     podcast_id: str
-    episode_id: Optional[str] = None
+    episode_id: str | None = None
     analysis_type: str = Field(
         ...,
         description="Typ der Analyse: 'wikitext_table', 'guests_topics', 'qa', 'custom_chat', 'summary'"
     )
-    custom_query: Optional[str] = Field(
+    custom_query: str | None = Field(
         default=None,
         description="Spezifische Frage für Q&A oder Prompt für freien Chat"
     )
-    model: Optional[str] = None
+    model: str | None = None
 
     @field_validator("analysis_type")
     @classmethod
@@ -162,8 +164,8 @@ class AIAnalysisRequest(BaseModel):
 
 class AIAnalysisResponse(BaseModel):
     id: str
-    podcast_id: Optional[str] = None
-    episode_id: Optional[str] = None
+    podcast_id: str | None = None
+    episode_id: str | None = None
     analysis_type: str
     prompt: str
     model: str
