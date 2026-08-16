@@ -7,6 +7,7 @@ import json
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
+from urllib.parse import urlparse
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Response, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,7 +16,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.config import settings
+from app.config import sanitize_log_message, settings
 from app.database import get_db, init_db
 from app.exporters import generate_gemtext_podcast, generate_gophermap_podcast
 from app.gemini_service import GeminiAIService
@@ -163,7 +164,8 @@ async def scrape_media_feed(payload: ScrapeRequest, db: AsyncSession = Depends(g
     """
     Importiert einen neuen Podcast, YouTube-Kanal oder RSS-Feed und persistiert alle Daten.
     """
-    logger.info(f"Starte Scrape-Vorgang für URL: {payload.url}")
+    safe_url = sanitize_log_message(payload.url)
+    logger.info("Starte Scrape-Vorgang für URL: %s", safe_url)
 
     try:
         scraper = ScraperFactory.get_scraper_for_url(payload.url)
@@ -526,7 +528,13 @@ async def search_transcripts(
 
                     deep_link = None
                     if episode.audio_or_video_url:
-                        if "youtube.com" in episode.audio_or_video_url or "youtu.be" in episode.audio_or_video_url:
+                        parsed_ep = urlparse(episode.audio_or_video_url)
+                        ep_host = (parsed_ep.hostname or "").lower()
+                        if (
+                            ep_host in ("youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com", "youtu.be")
+                            or ep_host.endswith(".youtube.com")
+                            or ep_host.endswith(".youtu.be")
+                        ):
                             separator = "&" if "?" in episode.audio_or_video_url else "?"
                             deep_link = f"{episode.audio_or_video_url}{separator}t={int(start_sec)}s"
                         else:
