@@ -12,7 +12,7 @@ from urllib.parse import parse_qs, urlparse
 import yt_dlp
 from youtube_transcript_api import NoTranscriptFound, TranscriptsDisabled, YouTubeTranscriptApi
 
-from app.config import settings
+from app.config import sanitize_log_message
 from app.scrapers.base import (
     BaseScraper,
     ChapterDTO,
@@ -39,18 +39,17 @@ class YouTubeScraper(BaseScraper):
             "no_warnings": True,
             "extract_flat": "in_playlist",
             "skip_download": True,
-            "socket_timeout": settings.REQUEST_TIMEOUT_SECONDS,
             "ignoreerrors": True,
-            "noplaylist": False,
+            "socket_timeout": 15,
+            "retries": 3,
         }
 
     async def probe_feed(self, url: str) -> ProbeResultDTO:
         """
-        Führt eine blitzschnelle Vorab-Prüfung von YouTube-Kanälen, Playlists oder Videos durch (< 1s).
+        Führt eine Vorab-Prüfung eines YouTube-Kanals, einer Playlist oder eines Videos durch (ADR-0005).
         """
         probe_opts = {
-            "quiet": True,
-            "no_warnings": True,
+            **self.ydl_opts,
             "extract_flat": True,
             "skip_download": True,
             "playlist_items": "0",
@@ -66,7 +65,8 @@ class YouTubeScraper(BaseScraper):
         try:
             info = await asyncio.to_thread(_fetch_probe)
         except Exception as e:
-            logger.error(f"Fehler bei YouTube Probe für {url}: {e}")
+            safe_url = sanitize_log_message(url)
+            logger.error("Fehler bei YouTube Probe für %s: %s", safe_url, e)
             raise ScraperException(f"YouTube-Kanal konnte nicht geprüft werden: {e}") from e
 
         if not info:
@@ -105,9 +105,13 @@ class YouTubeScraper(BaseScraper):
         if not url:
             return None
         parsed = urlparse(url)
-        if parsed.hostname in ("youtu.be", "www.youtu.be"):
+        hostname = (parsed.hostname or "").lower()
+        if hostname in ("youtu.be", "www.youtu.be"):
             return parsed.path.strip("/")
-        if "youtube.com" in (parsed.hostname or ""):
+        if (
+            hostname in ("youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com")
+            or hostname.endswith(".youtube.com")
+        ):
             if parsed.path == "/watch":
                 qs = parse_qs(parsed.query)
                 return qs.get("v", [None])[0]
@@ -160,7 +164,8 @@ class YouTubeScraper(BaseScraper):
         try:
             info = await asyncio.to_thread(self._fetch_yt_info, url)
         except Exception as e:
-            logger.error(f"Fehler bei YouTube-Extraktion für {url}: {e}")
+            safe_url = sanitize_log_message(url)
+            logger.error("Fehler bei YouTube-Extraktion für %s: %s", safe_url, e)
             raise ScraperException(f"YouTube-Daten konnten nicht geladen werden: {str(e)}") from e
 
         if not info:
@@ -335,10 +340,12 @@ class YouTubeScraper(BaseScraper):
                     segments=segments
                 )
             except (TranscriptsDisabled, NoTranscriptFound):
-                logger.info(f"Kein Transkript verfügbar für YouTube Video {video_id}")
+                safe_id = sanitize_log_message(video_id)
+                logger.info("Kein Transkript verfügbar für YouTube Video %s", safe_id)
                 return None
             except Exception as e:
-                logger.warning(f"Fehler beim Abruf des Transkripts für {video_id}: {e}")
+                safe_id = sanitize_log_message(video_id)
+                logger.warning("Fehler beim Abruf des Transkripts für %s: %s", safe_id, e)
                 return None
 
         return await asyncio.to_thread(_get_transcript_sync)
