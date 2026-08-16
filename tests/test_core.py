@@ -2,11 +2,13 @@
 # Copyright (C) 2026 Podcast & Media Channel Researcher Contributors
 
 import unittest
+from datetime import UTC
+
 from app.config import is_safe_external_url
+from app.schemas import AIAnalysisRequest, ScrapeRequest
 from app.scrapers.factory import ScraperFactory
-from app.scrapers.youtube import YouTubeScraper
 from app.scrapers.rss import RSSScraper
-from app.schemas import ScrapeRequest, AIAnalysisRequest
+from app.scrapers.youtube import YouTubeScraper
 
 
 class TestSecurityAndSSRF(unittest.TestCase):
@@ -174,8 +176,9 @@ class TestGeminiExporter(unittest.TestCase):
     """Testet den Geminispace Exporter (MIME text/gemini)."""
 
     def setUp(self):
-        from app.models import Podcast, Episode
-        from datetime import datetime, timezone
+        from datetime import datetime
+
+        from app.models import Episode, Podcast
         self.pod = Podcast(
             id="test-pod-1",
             platform="youtube",
@@ -190,7 +193,7 @@ class TestGeminiExporter(unittest.TestCase):
             external_id="dQw4w9WgXcQ",
             title="Episode 1: Die Zukunft von Open Source",
             episode_number=1,
-            published_at=datetime(2026, 1, 15, tzinfo=timezone.utc),
+            published_at=datetime(2026, 1, 15, tzinfo=UTC),
             duration_seconds=3600,
             audio_or_video_url="https://youtube.com/watch?v=dQw4w9WgXcQ",
             description="In dieser Folge diskutieren wir GPL-3.0 und Geminispace.",
@@ -226,7 +229,7 @@ class TestGopherExporter(unittest.TestCase):
     """Testet den Gopherspace Exporter (RFC 1436 gophermap)."""
 
     def setUp(self):
-        from app.models import Podcast, Episode
+        from app.models import Episode, Podcast
         self.pod = Podcast(
             id="test-pod-2",
             platform="rss",
@@ -252,7 +255,7 @@ class TestGopherExporter(unittest.TestCase):
         gopher = generate_gophermap_podcast(self.pod, host="gopher.example.org", port=70)
 
         # RFC 1436 Zeilen validieren (jede Zeile muss Typ 'i', 'h', '1' oder '0' haben und 4 Tab-getrennte Felder)
-        lines = [l for l in gopher.splitlines() if l.strip()]
+        lines = [line_item for line_item in gopher.splitlines() if line_item.strip()]
         for line in lines:
             parts = line.split("\t")
             self.assertEqual(len(parts), 4, f"Ungültige RFC 1436 Gopher-Zeile (braucht 4 Tabs): '{line}'")
@@ -278,11 +281,12 @@ class TestWebspacePublisher(unittest.TestCase):
         self.assertEqual(safe_slug(""), "podcast")
 
     def test_publish_all_creates_files(self):
-        import tempfile
         import shutil
+        import tempfile
         from pathlib import Path
+
+        from app.models import Episode, Podcast
         from app.services.publisher import WebspacePublisher
-        from app.models import Podcast, Episode
 
         temp_dir = tempfile.mkdtemp()
         try:
