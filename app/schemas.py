@@ -12,6 +12,34 @@ from app.config import is_safe_external_url
 # ==============================================================================
 # Scraper & Ingestion Schemas
 # ==============================================================================
+class ProbeRequest(BaseModel):
+    url: str = Field(
+        ...,
+        description="URL des Feeds oder YouTube Kanals zur schnellen Vorab-Prüfung",
+        min_length=5,
+        max_length=2048
+    )
+
+    @field_validator("url")
+    @classmethod
+    def validate_url_security(cls, v: str) -> str:
+        is_safe, error_msg = is_safe_external_url(v)
+        if not is_safe:
+            raise ValueError(f"Sicherheitsüberprüfung fehlgeschlagen: {error_msg}")
+        return v.strip()
+
+
+class ProbeResponse(BaseModel):
+    platform: str
+    title: str
+    url: str
+    author: str | None = None
+    description: str | None = None
+    image_url: str | None = None
+    approx_episodes_count: int | None = None
+    metadata: dict[str, Any] = {}
+
+
 class ScrapeRequest(BaseModel):
     url: str = Field(
         ...,
@@ -39,6 +67,7 @@ class ScrapeRequest(BaseModel):
         return v.strip()
 
 
+
 # ==============================================================================
 # Chapter & Transcript DTOs
 # ==============================================================================
@@ -63,6 +92,25 @@ class TranscriptResponse(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class TranscriptSearchResultItem(BaseModel):
+    podcast_id: str
+    podcast_title: str
+    episode_id: str
+    episode_title: str
+    episode_number: int | None = None
+    timestamp_seconds: float
+    timestamp_formatted: str
+    matched_text: str
+    deep_link_url: str | None = None
+
+
+class TranscriptSearchResponse(BaseModel):
+    query: str
+    total_matches: int
+    results: list[TranscriptSearchResultItem]
+
 
 
 # ==============================================================================
@@ -145,21 +193,37 @@ class AIAnalysisRequest(BaseModel):
     episode_id: str | None = None
     analysis_type: str = Field(
         ...,
-        description="Typ der Analyse: 'wikitext_table', 'guests_topics', 'qa', 'custom_chat', 'summary'"
+        description="Typ der Analyse: 'wikitext_table', 'wikipedia_template', 'guests_topics', 'qa', 'custom_chat', 'summary'"
     )
     custom_query: str | None = Field(
         default=None,
         description="Spezifische Frage für Q&A oder Prompt für freien Chat"
+    )
+    style_format: str | None = Field(
+        default="wikitable",
+        description="Stilformat für Wikipedia-Generierung ('wikitable' oder 'template')"
+    )
+    only_new_episodes: bool = Field(
+        default=False,
+        description="Falls True, werden nur die neuesten Episoden im Delta-Modus aufbereitet"
     )
     model: str | None = None
 
     @field_validator("analysis_type")
     @classmethod
     def validate_type(cls, v: str) -> str:
-        valid_types = {"wikitext_table", "guests_topics", "qa", "custom_chat", "summary"}
+        valid_types = {
+            "wikitext_table",
+            "wikipedia_template",
+            "guests_topics",
+            "qa",
+            "custom_chat",
+            "summary",
+        }
         if v not in valid_types:
             raise ValueError(f"Ungültiger Analysetyp '{v}'. Erlaubt: {', '.join(sorted(valid_types))}")
         return v
+
 
 
 class AIAnalysisResponse(BaseModel):
