@@ -1,0 +1,85 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Podcast & Media Channel Researcher Contributors
+#
+# Docker Build Context Ignore List (Security First - ADR-0001)
+
+# Secrets & Environment Files
+.env
+.env.*
+!.env.example
+secrets/
+*.secret
+*.pem
+*.key
+*.cert
+
+# Version Control & IDEs
+.git
+.gitignore
+.gitattributes
+.github
+.agents
+.gemini
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Virtual Environments & Python Cache
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+
+# Testing, Quality Assurance & Coverage
+tests/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+coverage.json
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.tox/
+.nox/
+
+# Temporary Files, Logs & Scraper Artifacts
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+*.part
+*.ytdl
+downloads/
+
+# Local Database Files & Storage
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+pgdata/
+postgres-data/
+postgres_data/
+
+# Documentation & Development Configs
+docs/
+*.md
+!.github/
+pyrightconfig.json
+.editorconfig
+.ruff.toml
+.pytest.ini
