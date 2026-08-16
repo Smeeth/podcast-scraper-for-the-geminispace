@@ -16,13 +16,13 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@v3
 
       - name: Build Docker Image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@v6
         with:
           context: .
           load: true
@@ -32,14 +32,14 @@ jobs:
 
       - name: Test Container Startup & Non-Root Permissions
         run: |
-          # Container im Hintergrund starten
-          docker run -d --name test-app -p 8000:8000 podcast-researcher:test
+          # Container im Hintergrund starten (mit SQLite-Fallback für autarken Standalone-Test)
+          docker run -d --name test-app -p 8000:8000 -e DATABASE_URL=sqlite+aiosqlite:////tmp/test.db podcast-researcher:test
           
-          # Warten bis Service bereit ist (max 30s)
-          sleep 10
+          # Warten bis Service bereit ist
+          sleep 5
           
           # Healthcheck abfragen
-          curl --fail --retry 3 --retry-delay 2 http://127.0.0.1:8000/api/health
+          curl --fail --retry 5 --retry-delay 2 http://127.0.0.1:8000/api/health
           
           # Prüfen, ob als Non-Root (appuser) ausgeführt wird
           USER_ID=$(docker exec test-app id -u)
