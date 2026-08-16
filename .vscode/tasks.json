@@ -1,0 +1,92 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "dev: Start FastAPI Server",
+      "type": "shell",
+      "command": "${command:python.interpreterPath} -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "test: Run All Tests (unittest)",
+      "type": "shell",
+      "command": "${command:python.interpreterPath} -m unittest discover -s tests -p \"test_*.py\" -v",
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "test: Run All Tests (pytest)",
+      "type": "shell",
+      "command": "${command:python.interpreterPath} -m pytest tests -v",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "test: Run Integration Tests",
+      "type": "shell",
+      "command": "${command:python.interpreterPath} -m unittest tests.test_integration -v",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "lint: Ruff Check",
+      "type": "shell",
+      "command": "ruff check app tests .github/scripts",
+      "problemMatcher": "$ruff"
+    },
+    {
+      "label": "lint: Ruff Fix & Format",
+      "type": "shell",
+      "command": "ruff check --fix app tests .github/scripts && ruff format app tests .github/scripts",
+      "problemMatcher": "$ruff"
+    },
+    {
+      "label": "check: Verify SPDX Headers",
+      "type": "shell",
+      "command": "${command:python.interpreterPath} .github/scripts/verify_spdx_headers.py",
+      "problemMatcher": []
+    },
+    {
+      "label": "check: Run Security Audit",
+      "type": "shell",
+      "command": "${command:python.interpreterPath} .github/scripts/security_audit.py",
+      "problemMatcher": []
+    },
+    {
+      "label": "check: Validate Gemtext",
+      "type": "shell",
+      "command": "${command:python.interpreterPath} .github/scripts/gemtext_validator.py",
+      "problemMatcher": []
+    },
+    {
+      "label": "docker: Compose Up",
+      "type": "shell",
+      "command": "docker compose up -d",
+      "problemMatcher": []
+    },
+    {
+      "label": "docker: Compose Down",
+      "type": "shell",
+      "command": "docker compose down",
+      "problemMatcher": []
+    },
+    {
+      "label": "docker: Compose Build",
+      "type": "shell",
+      "command": "docker compose build",
+      "problemMatcher": []
+    }
+  ]
+}
