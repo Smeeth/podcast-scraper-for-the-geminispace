@@ -61,8 +61,8 @@ Das Projekt löst das Problem, dass Podcasts und YouTube-Kanäle reich an Wissen
 - **Gopherspace (`gophermap`):** RFC-1436-konforme Menübäume für klassische Gopher-Clients.
 - **Webspace Publisher:** Automatische Synchronisation aller archivierten Kanäle nach `public/gemini/` und `public/gopher/`.
 
-
 ---
+
 
 ## 🌟 Funktionsübersicht
 
@@ -203,8 +203,8 @@ Die erzeugten Kapsel-Dateien können direkt mit gängigen Daemons ausgeliefert w
 
 ---
 
-
 ## 🧪 Qualitätssicherung & Verifikation
+
 
 Das Projekt verfügt über eine umfassende Test- und Verifikations-Suite:
 
