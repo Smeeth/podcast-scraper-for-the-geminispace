@@ -29,6 +29,7 @@ graph TD
 ## 2. Die 4 Schichten im Detail
 
 ### Schicht 1: Gehärtete Weboberfläche (Frontend)
+
 - **Technologie:** Semantisches HTML5, Bootstrap 5 (`data-bs-theme="dark"`), Vanilla JavaScript, CSS3.
 - **Sicherheitsmerkmale:**
   - Keine externen CDN-Abhängigkeiten (vollständig lokal unter `/static/vendor/` gebündelt).
@@ -43,10 +44,12 @@ graph TD
   - **Export-Center:** Schnelle Konvertierung und Download in CSV, JSON, Markdown und MediaWiki-Wikitext.
 
 ### Schicht 2: Recherche-Archiv & Explorer
+
 - Verwaltet historische Analysen und ermöglicht das Durchsuchen von Tausenden Episoden und Transkripten.
 - Schnelle Volltextfilterung und semantische Kontextbereitstellung für KI-Abfragen.
 
 ### Schicht 3: Modulare Scraper- & Analytik-Engine
+
 - **Adapter-Pattern (`app/scrapers/`):**
   - `BaseScraper`: Abstrakte Schnittstelle für alle Plattformen mit typisierten DTOs (`PodcastInfo`, `EpisodeInfo`, `ChapterInfo`, `TranscriptInfo`).
   - `ScraperFactory`: Sichere Erkennung des Feed-Typs und Validierung der Ziel-URL gegen SSRF.
@@ -58,6 +61,7 @@ graph TD
   - Automatisches Token-Chunking für lange Transkripte.
 
 ### Schicht 4: Datenbank-Schicht (PostgreSQL 16)
+
 - **ORM:** SQLAlchemy 2.0 mit vollständiger AsyncIO-Unterstützung (`asyncpg`).
 - **Tabellen:**
   - `podcasts`: Kanaldaten, Plattform (`youtube`, `rss`, `apple`), Metadaten in JSONB.
