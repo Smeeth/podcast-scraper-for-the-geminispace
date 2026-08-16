@@ -120,7 +120,12 @@ downloads/
 # 7. IDE, Editor & OS Artifacts
 # ==============================================================================
 .idea/
-.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.vscode/*.log
 *.swp
 *.swo
 *~
