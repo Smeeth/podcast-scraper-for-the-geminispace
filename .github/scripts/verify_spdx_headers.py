@@ -25,9 +25,7 @@ CHECK_EXTENSIONS = {".py", ".js", ".sh"}
 def check_file(file_path: Path) -> bool:
     try:
         content = file_path.read_text(encoding="utf-8", errors="ignore")
-        if REQUIRED_SPDX in content:
-            return True
-        return False
+        return REQUIRED_SPDX in content
     except Exception as e:
         print(f"[FEHLER] Datei konnte nicht gelesen werden: {file_path} ({e})")
         return False
