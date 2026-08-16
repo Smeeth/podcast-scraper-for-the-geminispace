@@ -18,6 +18,7 @@ from app.scrapers.base import (
     ChapterDTO,
     EpisodeDTO,
     PodcastDTO,
+    ProbeResultDTO,
     ScraperException,
     TranscriptDTO,
     TranscriptSegmentDTO,
@@ -42,6 +43,62 @@ class YouTubeScraper(BaseScraper):
             "ignoreerrors": True,
             "noplaylist": False,
         }
+
+    async def probe_feed(self, url: str) -> ProbeResultDTO:
+        """
+        Führt eine blitzschnelle Vorab-Prüfung von YouTube-Kanälen, Playlists oder Videos durch (< 1s).
+        """
+        probe_opts = {
+            "quiet": True,
+            "no_warnings": True,
+            "extract_flat": True,
+            "skip_download": True,
+            "playlist_items": "0",
+            "socket_timeout": 10,
+            "ignoreerrors": True,
+        }
+
+        def _fetch_probe():
+            with yt_dlp.YoutubeDL(probe_opts) as ydl:  # type: ignore[arg-type]
+                info = ydl.extract_info(url, download=False)
+                return dict(info) if isinstance(info, dict) else {}
+
+        try:
+            info = await asyncio.to_thread(_fetch_probe)
+        except Exception as e:
+            logger.error(f"Fehler bei YouTube Probe für {url}: {e}")
+            raise ScraperException(f"YouTube-Kanal konnte nicht geprüft werden: {e}") from e
+
+        if not info:
+            raise ScraperException("Keine Kanalinformationen von YouTube erhalten.")
+
+        title = info.get("channel") or info.get("uploader") or info.get("title") or "YouTube Kanal"
+        author = info.get("uploader") or info.get("channel") or "Unbekannt"
+        description = (info.get("description") or "")[:500]
+
+        thumbnails = info.get("thumbnails") or []
+        image_url = thumbnails[-1].get("url") if thumbnails else info.get("thumbnail")
+
+        approx_count = info.get("playlist_count")
+        if approx_count is None and "entries" in info:
+            entries = info.get("entries")
+            approx_count = len(entries) if entries else None
+
+        return ProbeResultDTO(
+            platform="youtube",
+            title=title,
+            url=url,
+            author=author,
+            description=description,
+            image_url=image_url,
+            approx_episodes_count=approx_count,
+            metadata={
+                "channel_id": info.get("channel_id"),
+                "channel_url": info.get("channel_url"),
+                "subscriber_count": info.get("subscriber_count"),
+            }
+        )
+
 
     def _extract_video_id(self, url: str) -> str | None:
         """Extrahiert sicher die 11-stellige Video-ID aus einer YouTube-URL."""
