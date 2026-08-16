@@ -3,18 +3,22 @@
 
 import asyncio
 import logging
-from typing import AsyncGenerator
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy.orm import declarative_base
+from collections.abc import AsyncGenerator
+from typing import Any
+
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import DeclarativeBase
+
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 
 # SQLAlchemy Base-Klasse
-Base = declarative_base()
+class Base(DeclarativeBase):
+    pass
 
 # Async Engine mit Connection Pooling & Pre-Ping
-engine_args = {
+engine_args: dict[str, Any] = {
     "echo": False,
     "future": True,
 }
