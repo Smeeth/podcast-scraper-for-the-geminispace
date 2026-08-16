@@ -7,35 +7,33 @@ import json
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import List, Optional
 
-from fastapi import FastAPI, Depends, HTTPException, Query, Response, status
+from fastapi import Depends, FastAPI, HTTPException, Query, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse, FileResponse
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 
 from app.config import settings
 from app.database import get_db, init_db
-from app.models import Podcast, Episode, Transcript, AIAnalysis
+from app.exporters import generate_gemtext_podcast, generate_gophermap_podcast
+from app.gemini_service import GeminiAIService
+from app.models import AIAnalysis, Episode, Podcast, Transcript
 from app.schemas import (
-    ScrapeRequest,
-    PodcastSummaryResponse,
-    PodcastDetailResponse,
-    EpisodeSummaryResponse,
-    EpisodeDetailResponse,
-    TranscriptResponse,
     AIAnalysisRequest,
     AIAnalysisResponse,
+    EpisodeDetailResponse,
+    EpisodeSummaryResponse,
     HealthResponse,
-    PublishResponse
+    PodcastDetailResponse,
+    PodcastSummaryResponse,
+    PublishResponse,
+    ScrapeRequest,
+    TranscriptResponse,
 )
-from app.scrapers.factory import ScraperFactory
 from app.scrapers.base import ScraperException
-from app.gemini_service import GeminiAIService
-from app.exporters import generate_gemtext_podcast, generate_gophermap_podcast
+from app.scrapers.factory import ScraperFactory
 from app.services.publisher import WebspacePublisher
 
 # Logging-Konfiguration
@@ -141,13 +139,13 @@ async def scrape_media_feed(payload: ScrapeRequest, db: AsyncSession = Depends(g
             fetch_transcripts=payload.fetch_transcripts
         )
     except ScraperException as se:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(se))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(se)) from se
     except Exception as e:
         logger.error(f"Unerwarteter Fehler beim Scraping: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Interner Verarbeitungsfehler beim Erfassen des Medien-Feeds."
-        )
+        ) from e
 
     # Prüfen, ob Podcast bereits existiert (Update vs. Create)
     result = await db.execute(
@@ -252,7 +250,7 @@ async def scrape_media_feed(payload: ScrapeRequest, db: AsyncSession = Depends(g
             episode_number=e.episode_number,
             published_at=e.published_at,
             duration_seconds=e.duration_seconds,
-            has_transcript=bool(e.transcript is not None),
+            has_transcript=e.transcript is not None,
             has_chapters=bool(e.chapters and len(e.chapters) > 0),
             audio_or_video_url=e.audio_or_video_url
         )
@@ -275,7 +273,7 @@ async def scrape_media_feed(payload: ScrapeRequest, db: AsyncSession = Depends(g
     )
 
 
-@app.get("/api/podcasts", response_model=List[PodcastSummaryResponse], tags=["Archiv"])
+@app.get("/api/podcasts", response_model=list[PodcastSummaryResponse], tags=["Archiv"])
 async def list_podcasts(db: AsyncSession = Depends(get_db)):
     """Liefert alle gespeicherten Podcasts / Kanäle im Recherche-Archiv."""
     stmt = (
@@ -328,7 +326,7 @@ async def get_podcast_detail(podcast_id: str, db: AsyncSession = Depends(get_db)
             episode_number=e.episode_number,
             published_at=e.published_at,
             duration_seconds=e.duration_seconds,
-            has_transcript=bool(e.transcript is not None),
+            has_transcript=e.transcript is not None,
             has_chapters=bool(e.chapters and len(e.chapters) > 0),
             audio_or_video_url=e.audio_or_video_url
         )
@@ -535,7 +533,7 @@ async def run_ai_analysis(payload: AIAnalysisRequest, db: AsyncSession = Depends
     )
 
 
-@app.get("/api/ai/history/{podcast_id}", response_model=List[AIAnalysisResponse], tags=["Gemini AI"])
+@app.get("/api/ai/history/{podcast_id}", response_model=list[AIAnalysisResponse], tags=["Gemini AI"])
 async def get_ai_history(podcast_id: str, db: AsyncSession = Depends(get_db)):
     """Gibt frühere KI-Analysen für einen Podcast zurück."""
     stmt = (
@@ -612,7 +610,7 @@ async def export_podcast_data(
             headers={"Content-Disposition": f'attachment; filename="{safe_title}.json"'}
         )
 
-    elif export_format == "csv":
+    if export_format == "csv":
         output = io.StringIO()
         writer = csv.writer(output, quoting=csv.QUOTE_MINIMAL)
         writer.writerow(["Episode", "Titel", "Veroeffentlichung", "Dauer_Minuten", "URL", "Show_Notes"])
@@ -634,7 +632,7 @@ async def export_podcast_data(
             headers={"Content-Disposition": f'attachment; filename="{safe_title}.csv"'}
         )
 
-    elif export_format == "markdown":
+    if export_format == "markdown":
         md = [
             f"# {podcast.title}",
             f"**Plattform:** {podcast.platform.upper()} | **Autor:** {podcast.author or 'Unbekannt'}",
@@ -656,7 +654,7 @@ async def export_podcast_data(
             headers={"Content-Disposition": f'attachment; filename="{safe_title}.md"'}
         )
 
-    elif export_format == "wikitext":
+    if export_format == "wikitext":
         wiki = [
             f"== {podcast.title} ==",
             f"'''Autor/Kanal:''' {podcast.author or 'Unbekannt'}",
@@ -680,7 +678,7 @@ async def export_podcast_data(
             headers={"Content-Disposition": f'attachment; filename="{safe_title}_wikitext.txt"'}
         )
 
-    elif export_format == "gemtext":
+    if export_format == "gemtext":
         gemtext_content = generate_gemtext_podcast(podcast)
         return Response(
             content=gemtext_content,
@@ -688,7 +686,7 @@ async def export_podcast_data(
             headers={"Content-Disposition": f'attachment; filename="{safe_title}.gmi"'}
         )
 
-    elif export_format == "gopher":
+    if export_format == "gopher":
         gopher_content = generate_gophermap_podcast(
             podcast, host=settings.GOPHER_HOST, port=settings.GOPHER_PORT
         )
@@ -697,6 +695,7 @@ async def export_podcast_data(
             media_type="text/plain; charset=utf-8",
             headers={"Content-Disposition": f'attachment; filename="{safe_title}.gophermap"'}
         )
+    return None
 
 
 # ==============================================================================
