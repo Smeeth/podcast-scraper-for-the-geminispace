@@ -28,9 +28,13 @@ from app.schemas import (
     HealthResponse,
     PodcastDetailResponse,
     PodcastSummaryResponse,
+    ProbeRequest,
+    ProbeResponse,
     PublishResponse,
     ScrapeRequest,
     TranscriptResponse,
+    TranscriptSearchResponse,
+    TranscriptSearchResultItem,
 )
 from app.scrapers.base import ScraperException
 from app.scrapers.factory import ScraperFactory
@@ -124,7 +128,37 @@ async def health_check(db: AsyncSession = Depends(get_db)):
 # ==============================================================================
 # Scraper & Podcast Management Endpoints
 # ==============================================================================
+@app.post("/api/probe", response_model=ProbeResponse, tags=["Scraper"])
+async def probe_media_feed(payload: ProbeRequest):
+    """
+    Führt eine blitzschnelle Vorab-Prüfung (< 1s) des Feeds/Kanals durch (ADR-0005).
+    Gibt Metadaten, Thumbnail und geschätzte Episodenzahl für die Bestätigung zurück.
+    """
+    try:
+        scraper = ScraperFactory.get_scraper_for_url(payload.url)
+        probe_res = await scraper.probe_feed(payload.url)
+        return ProbeResponse(
+            platform=probe_res.platform,
+            title=probe_res.title,
+            url=probe_res.url,
+            author=probe_res.author,
+            description=probe_res.description,
+            image_url=probe_res.image_url,
+            approx_episodes_count=probe_res.approx_episodes_count,
+            metadata=probe_res.metadata,
+        )
+    except ScraperException as se:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(se)) from se
+    except Exception as e:
+        logger.error(f"Fehler bei Vorab-Prüfung (Probe): {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Kanal konnte nicht vorab geprüft werden: {e}"
+        ) from e
+
+
 @app.post("/api/scrape", response_model=PodcastDetailResponse, status_code=status.HTTP_201_CREATED, tags=["Scraper"])
+
 async def scrape_media_feed(payload: ScrapeRequest, db: AsyncSession = Depends(get_db)):
     """
     Importiert einen neuen Podcast, YouTube-Kanal oder RSS-Feed und persistiert alle Daten.
@@ -455,13 +489,77 @@ async def fetch_episode_transcript(episode_id: str, db: AsyncSession = Depends(g
     )
 
 
+@app.get("/api/search/transcripts", response_model=TranscriptSearchResponse, tags=["Recherche"])
+async def search_transcripts(
+    q: str = Query(..., min_length=2, max_length=100, description="Suchbegriff in Transkripten"),
+    podcast_id: str | None = Query(None, description="Optionaler Podcast-Filter"),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Durchsucht alle gespeicherten Volltext-Transkripte und Segmente mit sekundengenauen Deep-Links (ADR-0005).
+    """
+    stmt = (
+        select(Transcript, Episode, Podcast)
+        .join(Episode, Transcript.episode_id == Episode.id)
+        .join(Podcast, Episode.podcast_id == Podcast.id)
+    )
+    if podcast_id:
+        stmt = stmt.where(Podcast.id == podcast_id)
+
+    result = await db.execute(stmt)
+    rows = result.all()
+
+    query_lower = q.lower()
+    matches: list[TranscriptSearchResultItem] = []
+
+    for transcript, episode, podcast in rows:
+        segments = transcript.segments or []
+        for seg in segments:
+            if isinstance(seg, dict):
+                text = str(seg.get("text", ""))
+                if query_lower in text.lower():
+                    start_sec = float(seg.get("start", 0) or 0)
+                    hours = int(start_sec // 3600)
+                    mins = int((start_sec % 3600) // 60)
+                    secs = int(start_sec % 60)
+                    time_fmt = f"{hours:02d}:{mins:02d}:{secs:02d}" if hours > 0 else f"{mins:02d}:{secs:02d}"
+
+                    deep_link = None
+                    if episode.audio_or_video_url:
+                        if "youtube.com" in episode.audio_or_video_url or "youtu.be" in episode.audio_or_video_url:
+                            separator = "&" if "?" in episode.audio_or_video_url else "?"
+                            deep_link = f"{episode.audio_or_video_url}{separator}t={int(start_sec)}s"
+                        else:
+                            deep_link = episode.audio_or_video_url
+
+                    matches.append(
+                        TranscriptSearchResultItem(
+                            podcast_id=podcast.id,
+                            podcast_title=podcast.title,
+                            episode_id=episode.id,
+                            episode_title=episode.title,
+                            episode_number=episode.episode_number,
+                            timestamp_seconds=start_sec,
+                            timestamp_formatted=time_fmt,
+                            matched_text=text,
+                            deep_link_url=deep_link
+                        )
+                    )
+
+    return TranscriptSearchResponse(
+        query=q,
+        total_matches=len(matches),
+        results=matches[:100]
+    )
+
+
 # ==============================================================================
 # Gemini AI Lab Endpoints
 # ==============================================================================
 @app.post("/api/ai/analyze", response_model=AIAnalysisResponse, tags=["Gemini AI"])
 async def run_ai_analysis(payload: AIAnalysisRequest, db: AsyncSession = Depends(get_db)):
     """
-    Führt eine strukturierte Gemini KI-Analyse durch (Wikipedia-Tabelle, Gäste/Themen, Q&A, Chat).
+    Führt eine strukturierte Gemini KI-Analyse durch (Wikipedia-Tabelle, Vorlage, Gäste/Themen, Q&A, Chat).
     """
     # Podcast & Episoden laden
     stmt = (
@@ -485,7 +583,11 @@ async def run_ai_analysis(payload: AIAnalysisRequest, db: AsyncSession = Depends
     episodes_list = []
     selected_transcript = None
 
-    for ep in podcast.episodes:
+    episodes_source = podcast.episodes or []
+    if payload.only_new_episodes:
+        episodes_source = episodes_source[:15]
+
+    for ep in episodes_source:
         ep_dict = {
             "title": ep.title,
             "episode_number": ep.episode_number,
@@ -504,6 +606,7 @@ async def run_ai_analysis(payload: AIAnalysisRequest, db: AsyncSession = Depends
         episodes=episodes_list,
         transcript_text=selected_transcript,
         custom_query=payload.custom_query,
+        style_format=payload.style_format,
         model_override=payload.model
     )
 
@@ -515,7 +618,7 @@ async def run_ai_analysis(payload: AIAnalysisRequest, db: AsyncSession = Depends
         prompt=analysis_res.get("prompt", ""),
         model=analysis_res.get("model", settings.GEMINI_MODEL),
         response_text=analysis_res.get("response_text", ""),
-        metadata_json={"success": analysis_res.get("success", False)}
+        metadata_json={"success": analysis_res.get("success", False), "style_format": payload.style_format}
     )
     db.add(ai_record)
     await db.commit()
@@ -542,34 +645,22 @@ async def get_ai_history(podcast_id: str, db: AsyncSession = Depends(get_db)):
         .order_by(AIAnalysis.created_at.desc())
     )
     res = await db.execute(stmt)
-    analyses = res.scalars().all()
-
-    return [
-        AIAnalysisResponse(
-            id=a.id,
-            podcast_id=a.podcast_id,
-            episode_id=a.episode_id,
-            analysis_type=a.analysis_type,
-            prompt=a.prompt,
-            model=a.model,
-            response_text=a.response_text,
-            created_at=a.created_at
-        )
-        for a in analyses
-    ]
+    records = res.scalars().all()
+    return [AIAnalysisResponse.model_validate(r) for r in records]
 
 
 # ==============================================================================
-# Export Center Endpoints
+# Multi-Format Export Endpoints
 # ==============================================================================
 @app.get("/api/export/{podcast_id}", tags=["Export"])
 async def export_podcast_data(
     podcast_id: str,
-    export_format: str = Query("json", alias="format", pattern="^(csv|json|markdown|wikitext|gemtext|gopher)$"),
+    export_format: str = Query("json", alias="format", pattern="^(csv|json|markdown|wikitext|wikipedia_template|gemtext|gopher)$"),
+    since_ep: int | None = Query(None, description="Exportiert nur Episoden ab dieser Nummer (Delta-Modus)"),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Exportiert die Episoden- und Recherche-Daten eines Podcasts in CSV, JSON, Markdown, Wikitext, Gemtext (.gmi) oder Gophermap.
+    Exportiert die Episoden- und Recherche-Daten eines Podcasts in CSV, JSON, Markdown, Wikitext, Wikipedia-Vorlage, Gemtext (.gmi) oder Gophermap.
     """
     stmt = (
         select(Podcast)
@@ -583,6 +674,10 @@ async def export_podcast_data(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Podcast nicht gefunden.")
 
     safe_title = "".join(c for c in podcast.title if c.isalnum() or c in (" ", "-", "_")).strip().replace(" ", "_")
+
+    episodes = podcast.episodes or []
+    if since_ep is not None:
+        episodes = [e for e in episodes if e.episode_number is not None and e.episode_number >= since_ep]
 
     if export_format == "json":
         data = {
@@ -601,7 +696,7 @@ async def export_podcast_data(
                     "audio_or_video_url": ep.audio_or_video_url,
                     "chapters": ep.chapters
                 }
-                for ep in podcast.episodes
+                for ep in episodes
             ]
         }
         return Response(
@@ -614,7 +709,7 @@ async def export_podcast_data(
         output = io.StringIO()
         writer = csv.writer(output, quoting=csv.QUOTE_MINIMAL)
         writer.writerow(["Episode", "Titel", "Veroeffentlichung", "Dauer_Minuten", "URL", "Show_Notes"])
-        for ep in podcast.episodes:
+        for ep in episodes:
             dur_min = round(ep.duration_seconds / 60, 1) if ep.duration_seconds else ""
             pub = ep.published_at.strftime("%Y-%m-%d") if ep.published_at else ""
             clean_desc = (ep.description or "").replace("\n", " ")[:300]
@@ -642,7 +737,7 @@ async def export_podcast_data(
             "| Nr. | Titel | Datum | Dauer | Link |",
             "|---|---|---|---|---|"
         ]
-        for ep in podcast.episodes:
+        for ep in episodes:
             dur = f"{ep.duration_seconds // 60}m" if ep.duration_seconds else "-"
             pub = ep.published_at.strftime("%Y-%m-%d") if ep.published_at else "-"
             url_link = f"[Link]({ep.audio_or_video_url})" if ep.audio_or_video_url else "-"
@@ -664,7 +759,7 @@ async def export_podcast_data(
             "! Nr. !! Titel !! Erstveröffentlichung !! Dauer !! Link",
             "|-"
         ]
-        for ep in podcast.episodes:
+        for ep in episodes:
             dur = f"{ep.duration_seconds // 60} Min." if ep.duration_seconds else "-"
             pub = ep.published_at.strftime("%d.%m.%Y") if ep.published_at else "-"
             link_str = f"[{ep.audio_or_video_url} Link]" if ep.audio_or_video_url else "-"
@@ -676,6 +771,37 @@ async def export_podcast_data(
             content="\n".join(wiki),
             media_type="text/plain; charset=utf-8",
             headers={"Content-Disposition": f'attachment; filename="{safe_title}_wikitext.txt"'}
+        )
+
+    if export_format == "wikipedia_template":
+        wiki = [
+            "{{Episodentabelle/Kopf",
+            "| GESAMT = ja",
+            "| TITEL = ja",
+            "| ERSTAUSSTRAHLUNG = ja",
+            "| DAUER = ja",
+            "| ZUSAMMENFASSUNG = ja",
+            "}}"
+        ]
+        for ep in episodes:
+            dur = f"{ep.duration_seconds // 60} Min." if ep.duration_seconds else "-"
+            pub = ep.published_at.strftime("%d. %B %Y") if ep.published_at else "-"
+            clean_desc = (ep.description or "").replace("\n", " ")[:300]
+            wiki.extend([
+                "{{Episodenliste",
+                f"| NR_GESAMT = {ep.episode_number or '-'}",
+                f"| TITEL = {ep.title}",
+                f"| ERSTAUSSTRAHLUNG = {pub}",
+                f"| DAUER = {dur}",
+                f"| ZUSAMMENFASSUNG = {clean_desc}",
+                "}}"
+            ])
+        wiki.append("|}")
+
+        return Response(
+            content="\n".join(wiki),
+            media_type="text/plain; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{safe_title}_episodenliste.txt"'}
         )
 
     if export_format == "gemtext":
