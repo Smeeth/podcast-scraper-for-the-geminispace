@@ -242,6 +242,23 @@ Die Entwicklungsrichtlinien und Architektur-Entscheidungen werden im Verzeichnis
 
 ---
 
+## 🙏 Danksagung & Credits (Acknowledgements)
+
+Ein besonderer Dank gilt den Open-Source-Entwicklern und Maintainern der Kern-Bibliotheken, auf denen diese Plattform aufbaut:
+
+- **[FastAPI](https://fastapi.tiangolo.com/) & [Starlette](https://www.starlette.io/)** – Sebastián Ramírez (`@tiangolo`) und Mitwirkende für das moderne ASGI-Webframework (MIT).
+- **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** – Das `yt-dlp`-Team für das unverzichtbare Werkzeug zur Video- und Metadaten-Extraktion (Unlicense / Public Domain).
+- **[SQLAlchemy](https://www.sqlalchemy.org/)** – Mike Bayer und das SQLAlchemy-Team für das asynchrone ORM-Fundament (MIT).
+- **[defusedxml](https://github.com/tiran/defusedxml)** – Christian Heimes für den essenziellen Schutz vor XML-Schwachstellen (PSFL).
+- **[feedparser](https://github.com/kurtmckee/feedparser)** – Kurt McKee und Mark Pilgrim für universelles RSS/Atom-Parsing (BSD-2-Clause).
+- **[youtube-transcript-api](https://github.com/jdepoix/youtube-transcript-api)** – Jonas Depoix für die Extraktion von YouTube-Transkripten und Zeitstempeln (MIT).
+- **[Uvicorn](https://www.uvicorn.org/) & [HTTPX](https://www.encode.io/httpx/)** – Das Encode-Team (Tom Christie et al.) für moderne asynchrone HTTP-Clients und Server (BSD-3-Clause).
+- **[Pydantic](https://docs.pydantic.dev/)** – Samuel Colvin und Team für typsichere Datenvalidierung (MIT).
+- **[Bootstrap](https://getbootstrap.com/)** – Das Bootstrap-Team für das lokal gebündelte UI-Framework (MIT).
+- **[Google GenAI SDK](https://github.com/google-gemini/google-genai)** – Google für das SDK zur Gemini 2.5 KI-Integration (Apache-2.0).
+
+---
+
 ## 📄 Lizenz
 
 Dieses Projekt steht unter der **GNU General Public License v3.0 or later (GPL-3.0-or-later)**.  
@@ -251,3 +268,4 @@ Details siehe [LICENSE](LICENSE).
 SPDX-License-Identifier: GPL-3.0-or-later
 Copyright (C) 2026 Podcast & Media Channel Researcher Contributors
 ```
+
