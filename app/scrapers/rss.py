@@ -13,7 +13,12 @@ import feedparser
 import httpx
 from defusedxml.common import DefusedXmlException
 
-from app.config import is_safe_external_url, sanitize_log_message, settings
+from app.config import (
+    is_safe_external_url,
+    sanitize_log_message,
+    settings,
+    validate_and_reconstruct_safe_url,
+)
 from app.scrapers.base import (
     BaseScraper,
     ChapterDTO,
@@ -55,18 +60,18 @@ class RSSScraper(BaseScraper):
             platform = "apple"
             feed_url, apple_metadata = await self._resolve_apple_podcasts_url(url)
 
-        # SSRF Validierung
-        is_safe, error_reason = is_safe_external_url(feed_url)
+        # SSRF Validierung & URL-Rekonstruktion (CodeQL Taint-Barrier)
+        is_safe, error_reason, safe_url = validate_and_reconstruct_safe_url(feed_url)
         if not is_safe:
             raise ScraperException(f"Sicherheitsblockade (SSRF): {error_reason}")
 
         try:
             async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
-                resp = await client.get(feed_url, headers=self.client_headers)
+                resp = await client.get(safe_url, headers=self.client_headers)
                 resp.raise_for_status()
                 content = resp.text
         except Exception as e:
-            safe_feed = sanitize_log_message(feed_url)
+            safe_feed = sanitize_log_message(safe_url)
             logger.error("Fehler beim Probe-Download von %s: %s", safe_feed, e)
             raise ScraperException(f"Feed konnte nicht geladen werden: {e}") from e
 
@@ -198,12 +203,13 @@ class RSSScraper(BaseScraper):
         Lädt den XML-Inhalt herunter und validiert ihn über defusedxml gegen XXE / XML-Bomben.
         Sicherheitsverletzungen (DTD, externe Entities, XML-Bomben) werden hart blockiert.
         """
-        is_safe, error_reason = is_safe_external_url(feed_url)
+        # SSRF Validierung & URL-Rekonstruktion (CodeQL Taint-Barrier)
+        is_safe, error_reason, safe_url = validate_and_reconstruct_safe_url(feed_url)
         if not is_safe:
             raise ScraperException(f"Sicherheitsblockade (SSRF): {error_reason}")
 
         async with httpx.AsyncClient(timeout=settings.REQUEST_TIMEOUT_SECONDS, follow_redirects=True) as client:
-            resp = await client.get(feed_url, headers=self.client_headers)
+            resp = await client.get(safe_url, headers=self.client_headers)
             resp.raise_for_status()
 
             content = resp.content
