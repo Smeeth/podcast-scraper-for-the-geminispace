@@ -1,26 +1,27 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Podcast & Media Channel Researcher Contributors
 
+import contextlib
 import logging
 import re
-from datetime import datetime, timezone
-from typing import Optional, List, Dict, Any, Tuple
+from datetime import UTC, datetime
+from typing import Any
 from urllib.parse import urlparse
-import httpx
-import feedparser
+
 import defusedxml.ElementTree as DefusedET
+import feedparser
+import httpx
 from defusedxml.common import DefusedXmlException
 
+from app.config import is_safe_external_url, settings
 from app.scrapers.base import (
     BaseScraper,
-    PodcastDTO,
-    EpisodeDTO,
     ChapterDTO,
+    EpisodeDTO,
+    PodcastDTO,
+    ScraperException,
     TranscriptDTO,
-    TranscriptSegmentDTO,
-    ScraperException
 )
-from app.config import settings, is_safe_external_url
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +40,7 @@ class RSSScraper(BaseScraper):
             "Accept": "application/rss+xml, application/xml, text/xml, application/atom+xml, text/html, */*"
         }
 
-    async def _resolve_apple_podcasts_url(self, url: str) -> Tuple[str, Optional[Dict[str, Any]]]:
+    async def _resolve_apple_podcasts_url(self, url: str) -> tuple[str, dict[str, Any] | None]:
         """
         Löst eine Apple Podcasts URL (z.B. podcasts.apple.com/.../id12345678) über das iTunes Lookup API auf.
         """
@@ -67,9 +68,9 @@ class RSSScraper(BaseScraper):
                 return feed_url, item
         except Exception as e:
             logger.error(f"Fehler beim Auflösen des Apple Podcasts {url}: {e}")
-            raise ScraperException(f"Apple Podcasts Lookup fehlgeschlagen: {str(e)}")
+            raise ScraperException(f"Apple Podcasts Lookup fehlgeschlagen: {str(e)}") from e
 
-    def _parse_duration(self, raw_duration: Any) -> Optional[int]:
+    def _parse_duration(self, raw_duration: Any) -> int | None:
         """Konvertiert Dauerangaben (Sekunden oder HH:MM:SS) in ganzzahlige Sekunden."""
         if not raw_duration:
             return None
@@ -80,17 +81,17 @@ class RSSScraper(BaseScraper):
         try:
             if len(parts) == 3:
                 return int(parts[0]) * 3600 + int(parts[1]) * 60 + int(float(parts[2]))
-            elif len(parts) == 2:
+            if len(parts) == 2:
                 return int(parts[0]) * 60 + int(float(parts[1]))
         except ValueError:
             pass
         return None
 
-    def _parse_chapters_from_text(self, text: str) -> List[ChapterDTO]:
+    def _parse_chapters_from_text(self, text: str) -> list[ChapterDTO]:
         """Extrahiert Zeitstempel-Kapitelmarken aus Shownotes (inkl. [01:23] und (01:23))."""
         if not text:
             return []
-        chapters: List[ChapterDTO] = []
+        chapters: list[ChapterDTO] = []
         pattern = re.compile(r"^[\[\(]?(\d{1,2}:\d{2}(?::\d{2})?)[\]\)]?[:\s\-–—]+\s*(.+)$", re.MULTILINE)
         for match in pattern.finditer(text):
             time_str, title = match.group(1), match.group(2).strip()
@@ -127,7 +128,7 @@ class RSSScraper(BaseScraper):
                 raise ScraperException(
                     f"Feed enthält sicherheitskritische XML-Konstrukte (XXE/XML-Bomb) und wurde blockiert: "
                     f"{type(xml_security_err).__name__}: {xml_security_err}"
-                )
+                ) from xml_security_err
             except Exception:
                 # Nicht-sicherheitsrelevante Parser-Fehler (z.B. kein XML-Root, Atom-Feeds):
                 # feedparser kann diese Formate eigenständig verarbeiten.
@@ -162,74 +163,106 @@ class RSSScraper(BaseScraper):
         if parsed.bozo and not parsed.entries:
             raise ScraperException(f"RSS-Feed konnte nicht geparst werden: {parsed.bozo_exception}")
 
-        channel = parsed.feed
+        channel = getattr(parsed, "feed", {}) or {}
 
         # Podcast-Metadaten
-        title = channel.get("title") or (apple_metadata.get("collectionName") if apple_metadata else "Unbekannter Podcast")
-        author = channel.get("author") or channel.get("itunes_author") or (apple_metadata.get("artistName") if apple_metadata else "")
-        description = channel.get("description") or channel.get("subtitle") or channel.get("summary") or ""
-        website_url = channel.get("link") or url
+        channel_title = channel.get("title") if isinstance(channel, dict) else getattr(channel, "title", None)
+        title: str = str(channel_title or (apple_metadata.get("collectionName") if apple_metadata else "Unbekannter Podcast") or "Unbekannter Podcast")
+        author = str(channel.get("author", "") or channel.get("itunes_author", "") if isinstance(channel, dict) else (apple_metadata.get("artistName", "") if apple_metadata else ""))
+        description = str(channel.get("description", "") or channel.get("subtitle", "") or channel.get("summary", "") if isinstance(channel, dict) else "")
+        website_url = str(channel.get("link", url) if isinstance(channel, dict) else url)
 
         image_url = None
-        if "image" in channel and hasattr(channel.image, "href"):
-            image_url = channel.image.href
-        elif "itunes_image" in channel:
-            image_url = channel.itunes_image
-        elif apple_metadata and "artworkUrl600" in apple_metadata:
-            image_url = apple_metadata["artworkUrl600"]
+        if isinstance(channel, dict):
+            img = channel.get("image")
+            if isinstance(img, dict) and "href" in img:
+                image_url = str(img["href"])
+            elif img is not None and hasattr(img, "href"):
+                image_url = str(getattr(img, "href", ""))  # noqa: B009
+            elif "itunes_image" in channel:
+                image_url = str(channel.get("itunes_image"))
+        else:
+            if hasattr(channel, "image") and hasattr(channel.image, "href"):
+                image_url = str(channel.image.href)
+            elif hasattr(channel, "itunes_image"):
+                image_url = str(channel.itunes_image)
+        if not image_url and apple_metadata and "artworkUrl600" in apple_metadata:
+            image_url = str(apple_metadata["artworkUrl600"])
 
-        episodes: List[EpisodeDTO] = []
-        for idx, entry in enumerate(parsed.entries[:limit], start=1):
-            ep_title = entry.get("title", f"Episode {idx}")
-            ep_id = entry.get("id") or entry.get("link") or f"ep-{idx}"
-            ep_desc = entry.get("summary") or entry.get("description") or ""
+        episodes: list[EpisodeDTO] = []
+        entries: list[Any] = list(getattr(parsed, "entries", []))
+        for idx, entry in enumerate(entries[:limit], start=1):
+            ep_title = str(entry.get("title") if isinstance(entry, dict) else (getattr(entry, "title", None) or f"Episode {idx}"))
+            raw_id = entry.get("id") or entry.get("link") if isinstance(entry, dict) else (getattr(entry, "id", None) or getattr(entry, "link", None))
+            ep_id = str(raw_id or f"ep-{idx}")
+            raw_desc = entry.get("summary") or entry.get("description") if isinstance(entry, dict) else (getattr(entry, "summary", None) or getattr(entry, "description", None))
+            ep_desc = str(raw_desc or "")
 
             # Content:encoded bevorzugen für vollständige Show Notes
-            if "content" in entry and entry.content:
-                for c in entry.content:
-                    if c.get("value"):
-                        ep_desc = c.get("value")
+            entry_content = entry.get("content") if isinstance(entry, dict) else getattr(entry, "content", None)
+            if entry_content and isinstance(entry_content, list):
+                for c in entry_content:
+                    c_val = c.get("value") if isinstance(c, dict) else getattr(c, "value", None)
+                    if c_val:
+                        ep_desc = str(c_val)
                         break
 
             # Veröffentlichungsdatum
             published_at = None
-            if "published_parsed" in entry and entry.published_parsed:
-                try:
-                    published_at = datetime(*entry.published_parsed[:6], tzinfo=timezone.utc)
-                except Exception:
-                    pass
+            pub_parsed = entry.get("published_parsed") if isinstance(entry, dict) else getattr(entry, "published_parsed", None)
+            if pub_parsed and hasattr(pub_parsed, "__getitem__"):
+                with contextlib.suppress(Exception):
+                    published_at = datetime(
+                        int(pub_parsed[0]),
+                        int(pub_parsed[1]),
+                        int(pub_parsed[2]),
+                        int(pub_parsed[3]),
+                        int(pub_parsed[4]),
+                        int(pub_parsed[5]),
+                        tzinfo=UTC,
+                    )
 
             # Dauer
-            duration = self._parse_duration(entry.get("itunes_duration"))
+            raw_dur = entry.get("itunes_duration") if isinstance(entry, dict) else getattr(entry, "itunes_duration", None)
+            duration = self._parse_duration(str(raw_dur) if raw_dur is not None else None)
 
             # Episodennummer
             ep_num = None
-            if "itunes_episode" in entry:
-                try:
-                    ep_num = int(entry.itunes_episode)
-                except ValueError:
-                    pass
+            raw_ep_num = entry.get("itunes_episode") if isinstance(entry, dict) else getattr(entry, "itunes_episode", None)
+            if raw_ep_num is not None:
+                with contextlib.suppress(ValueError, TypeError):
+                    ep_num = int(raw_ep_num)
 
             # Audio Enclosure URL
-            audio_url = None
-            if "enclosures" in entry and entry.enclosures:
-                for enc in entry.enclosures:
-                    if enc.get("href"):
-                        audio_url = enc.get("href")
+            audio_url: str | None = None
+            enclosures = entry.get("enclosures") if isinstance(entry, dict) else getattr(entry, "enclosures", None)
+            if enclosures and isinstance(enclosures, list):
+                for enc in enclosures:
+                    enc_href = enc.get("href") if isinstance(enc, dict) else getattr(enc, "href", None)
+                    if enc_href:
+                        audio_url = str(enc_href)
                         break
-            if not audio_url and "link" in entry:
-                audio_url = entry.link
+            if not audio_url:
+                raw_link = entry.get("link") if isinstance(entry, dict) else getattr(entry, "link", None)
+                if raw_link:
+                    audio_url = str(raw_link)
 
             # Kapitelmarken
             chapters = self._parse_chapters_from_text(ep_desc)
 
             # Transkript URL aus Podcast Namespace (falls vorhanden)
             transcript = None
-            transcript_url = None
-            if "podcast_transcript" in entry:
-                transcript_url = entry.podcast_transcript
-            elif "podcast_transcripts" in entry and entry.podcast_transcripts:
-                transcript_url = entry.podcast_transcripts[0].get("url")
+            transcript_url: str | None = None
+            raw_t_url = entry.get("podcast_transcript") if isinstance(entry, dict) else getattr(entry, "podcast_transcript", None)
+            if raw_t_url:
+                transcript_url = str(raw_t_url)
+            else:
+                pts = entry.get("podcast_transcripts") if isinstance(entry, dict) else getattr(entry, "podcast_transcripts", None)
+                if pts and isinstance(pts, list) and len(pts) > 0:
+                    first_pt = pts[0]
+                    first_url = first_pt.get("url") if isinstance(first_pt, dict) else getattr(first_pt, "url", None)
+                    if first_url:
+                        transcript_url = str(first_url)
 
             if fetch_transcripts and transcript_url:
                 transcript = await self.extract_transcript(transcript_url)
@@ -244,8 +277,8 @@ class RSSScraper(BaseScraper):
                 audio_or_video_url=audio_url,
                 chapters=chapters,
                 metadata={
-                    "guid": entry.get("id"),
-                    "link": entry.get("link"),
+                    "guid": entry.get("id") if isinstance(entry, dict) else getattr(entry, "id", None),
+                    "link": entry.get("link") if isinstance(entry, dict) else getattr(entry, "link", None),
                     "transcript_url": transcript_url
                 },
                 transcript=transcript
@@ -260,14 +293,14 @@ class RSSScraper(BaseScraper):
             description=description,
             image_url=image_url,
             metadata={
-                "language": channel.get("language"),
-                "generator": channel.get("generator"),
+                "language": channel.get("language") if isinstance(channel, dict) else getattr(channel, "language", None),
+                "generator": channel.get("generator") if isinstance(channel, dict) else getattr(channel, "generator", None),
                 "total_feed_entries": len(parsed.entries)
             },
             episodes=episodes
         )
 
-    async def extract_transcript(self, episode_external_id_or_url: str) -> Optional[TranscriptDTO]:
+    async def extract_transcript(self, episode_external_id_or_url: str) -> TranscriptDTO | None:
         """
         Lädt ein externes Transkript (z.B. WebVTT, SRT, JSON) herunter.
         Die URL wird vorab gegen SSRF-Angriffe validiert (ADR-0001).
@@ -289,7 +322,7 @@ class RSSScraper(BaseScraper):
 
                 # Einfaches Parsing von WebVTT / Plain Text
                 lines = [line.strip() for line in text.splitlines() if line.strip()]
-                clean_lines = [l for l in lines if not l.startswith("WEBVTT") and "-->" not in l and not l.isdigit()]
+                clean_lines = [line_item for line_item in lines if not line_item.startswith("WEBVTT") and "-->" not in line_item and not line_item.isdigit()]
                 full_text = " ".join(clean_lines)
 
                 return TranscriptDTO(
