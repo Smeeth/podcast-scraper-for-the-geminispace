@@ -19,6 +19,7 @@ from app.scrapers.base import (
     ChapterDTO,
     EpisodeDTO,
     PodcastDTO,
+    ProbeResultDTO,
     ScraperException,
     TranscriptDTO,
 )
@@ -39,6 +40,72 @@ class RSSScraper(BaseScraper):
             "User-Agent": USER_AGENT,
             "Accept": "application/rss+xml, application/xml, text/xml, application/atom+xml, text/html, */*"
         }
+
+    async def probe_feed(self, url: str) -> ProbeResultDTO:
+        """
+        Führt eine Vorab-Prüfung eines RSS-, Atom- oder Apple Podcast-Feeds durch (ADR-0005).
+        """
+        feed_url = url
+        apple_metadata = None
+        platform = "rss"
+
+        if "podcasts.apple.com" in url:
+            platform = "apple"
+            feed_url, apple_metadata = await self._resolve_apple_podcasts_url(url)
+
+        # SSRF Validierung
+        is_safe, error_reason = is_safe_external_url(feed_url)
+        if not is_safe:
+            raise ScraperException(f"Sicherheitsblockade (SSRF): {error_reason}")
+
+        try:
+            async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
+                resp = await client.get(feed_url, headers=self.client_headers)
+                resp.raise_for_status()
+                content = resp.text
+        except Exception as e:
+            logger.error(f"Fehler beim Probe-Download von {feed_url}: {e}")
+            raise ScraperException(f"Feed konnte nicht geladen werden: {e}") from e
+
+        try:
+            DefusedET.fromstring(content.encode("utf-8"))
+        except (DefusedXmlException, Exception) as e:
+            raise ScraperException(f"XML-Sicherheitsprüfung für Feed fehlgeschlagen: {e}") from e
+
+        parsed = feedparser.parse(content)
+        channel = getattr(parsed, "feed", {})
+        title = channel.get("title") or "Unbekannter Podcast" if isinstance(channel, dict) else (getattr(channel, "title", None) or "Unbekannter Podcast")
+        author = channel.get("author") if isinstance(channel, dict) else getattr(channel, "author", None)
+        if not author and apple_metadata and "artistName" in apple_metadata:
+            author = apple_metadata["artistName"]
+
+        description = channel.get("description") or channel.get("subtitle") if isinstance(channel, dict) else (getattr(channel, "description", None) or getattr(channel, "subtitle", None))
+        if description:
+            description = str(description)[:500]
+
+        image_url = None
+        if hasattr(channel, "image") and hasattr(channel.image, "href"):
+            image_url = str(channel.image.href)
+        elif apple_metadata and "artworkUrl600" in apple_metadata:
+            image_url = str(apple_metadata["artworkUrl600"])
+
+        entries = getattr(parsed, "entries", [])
+        approx_count = len(entries) if entries else None
+
+        return ProbeResultDTO(
+            platform=platform,
+            title=str(title),
+            url=url,
+            author=str(author) if author else None,
+            description=str(description) if description else None,
+            image_url=image_url,
+            approx_episodes_count=approx_count,
+            metadata={
+                "feed_url": feed_url,
+                "language": channel.get("language") if isinstance(channel, dict) else getattr(channel, "language", None),
+            }
+        )
+
 
     async def _resolve_apple_podcasts_url(self, url: str) -> tuple[str, dict[str, Any] | None]:
         """
