@@ -4,7 +4,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Optional, Dict, Any
+from typing import Any
 
 
 @dataclass
@@ -35,21 +35,21 @@ class TranscriptSegmentDTO:
 class TranscriptDTO:
     language: str
     full_text: str
-    segments: List[TranscriptSegmentDTO] = field(default_factory=list)
+    segments: list[TranscriptSegmentDTO] = field(default_factory=list)
 
 
 @dataclass
 class EpisodeDTO:
     external_id: str
     title: str
-    episode_number: Optional[int] = None
-    published_at: Optional[datetime] = None
-    duration_seconds: Optional[int] = None
-    description: Optional[str] = ""
-    audio_or_video_url: Optional[str] = None
-    chapters: List[ChapterDTO] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    transcript: Optional[TranscriptDTO] = None
+    episode_number: int | None = None
+    published_at: datetime | None = None
+    duration_seconds: int | None = None
+    description: str | None = ""
+    audio_or_video_url: str | None = None
+    chapters: list[ChapterDTO] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
+    transcript: TranscriptDTO | None = None
 
 
 @dataclass
@@ -57,12 +57,12 @@ class PodcastDTO:
     platform: str  # 'youtube', 'rss', 'apple'
     title: str
     url: str
-    feed_url: Optional[str] = None
-    author: Optional[str] = None
-    description: Optional[str] = None
-    image_url: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    episodes: List[EpisodeDTO] = field(default_factory=list)
+    feed_url: str | None = None
+    author: str | None = None
+    description: str | None = None
+    image_url: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+    episodes: list[EpisodeDTO] = field(default_factory=list)
 
 
 class ScraperException(Exception):
@@ -88,7 +88,7 @@ class BaseScraper(ABC):
         pass
 
     @abstractmethod
-    async def extract_transcript(self, episode_external_id_or_url: str) -> Optional[TranscriptDTO]:
+    async def extract_transcript(self, episode_external_id_or_url: str) -> TranscriptDTO | None:
         """
         Extrahiert das Transkript für eine spezifische Episode.
         """
