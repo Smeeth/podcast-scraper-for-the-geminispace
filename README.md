@@ -63,10 +63,10 @@ Das Projekt löst das Problem, dass Podcasts und YouTube-Kanäle reich an Wissen
 
 ---
 
-
 ## 🌟 Funktionsübersicht
 
 | Funktionsbereich | Unterstützte Features & Technologien |
+
 | :--- | :--- |
 | **🎙️ Scraper-Adapter** | YouTube (`yt-dlp` Python-API), RSS 2.0 / Atom (`defusedxml`, `feedparser`), Apple Podcasts (iTunes Lookup) |
 | **🤖 Gemini KI** | `google-genai` SDK (Gemini 2.5 Flash / Pro) für Zusammenfassungen, Gäste-Profile, Q&A und Wikitext |
@@ -205,10 +205,10 @@ Die erzeugten Kapsel-Dateien können direkt mit gängigen Daemons ausgeliefert w
 
 ## 🧪 Qualitätssicherung & Verifikation
 
-
 Das Projekt verfügt über eine umfassende Test- und Verifikations-Suite:
 
 ```bash
+
 # 1. SPDX-Header aller Quelldateien prüfen
 python .github/scripts/verify_spdx_headers.py
 
