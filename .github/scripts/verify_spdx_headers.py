@@ -12,7 +12,7 @@ from pathlib import Path
 
 # Sicherstellen, dass UTF-8 auf allen Plattformen unterstützt wird
 if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8")
+    getattr(sys.stdout, "reconfigure")(encoding="utf-8")
 
 REQUIRED_SPDX = "SPDX-License-Identifier: GPL-3.0-or-later"
 EXCLUDE_DIRS = {
