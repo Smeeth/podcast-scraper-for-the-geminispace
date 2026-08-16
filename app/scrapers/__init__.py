@@ -10,6 +10,7 @@ from app.scrapers.base import (
     ChapterDTO,
     EpisodeDTO,
     PodcastDTO,
+    ProbeResultDTO,
     TranscriptDTO,
     TranscriptSegmentDTO,
 )
@@ -22,5 +23,7 @@ __all__ = [
     "TranscriptDTO",
     "ChapterDTO",
     "TranscriptSegmentDTO",
+    "ProbeResultDTO",
     "ScraperFactory",
 ]
+
