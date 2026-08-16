@@ -244,16 +244,20 @@ Die Entwicklungsrichtlinien und Architektur-Entscheidungen werden im Verzeichnis
 
 ## 🙏 Danksagung & Credits (Acknowledgements)
 
-Ein besonderer Dank gilt den Open-Source-Entwicklern und Maintainern der Kern-Bibliotheken, auf denen diese Plattform aufbaut:
+Ein besonderer Dank gilt den Open-Source-Entwicklern und Maintainern sämtlicher in diesem Projekt genutzten Bibliotheken und Datenbank-Treiber:
 
 - **[FastAPI](https://fastapi.tiangolo.com/) & [Starlette](https://www.starlette.io/)** – Sebastián Ramírez (`@tiangolo`) und Mitwirkende für das moderne ASGI-Webframework (MIT).
 - **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** – Das `yt-dlp`-Team für das unverzichtbare Werkzeug zur Video- und Metadaten-Extraktion (Unlicense / Public Domain).
 - **[SQLAlchemy](https://www.sqlalchemy.org/)** – Mike Bayer und das SQLAlchemy-Team für das asynchrone ORM-Fundament (MIT).
+- **[asyncpg](https://github.com/MagicStack/asyncpg)** – MagicStack Inc. (Yuri Selivanov, Elvis Pranskevichus) für den schnellen asynchronen PostgreSQL-Treiber (Apache-2.0).
+- **[psycopg2-binary](https://psycopg.org/)** – Daniele Varrazzo und Federico Di Gregorio für den robusten PostgreSQL-Adapter (LGPL-3.0 with exceptions).
+- **[aiosqlite](https://github.com/omnilib/aiosqlite)** – John Reese und Amethyst Engineers für asynchrones SQLite-Handling (MIT).
 - **[defusedxml](https://github.com/tiran/defusedxml)** – Christian Heimes für den essenziellen Schutz vor XML-Schwachstellen (PSFL).
 - **[feedparser](https://github.com/kurtmckee/feedparser)** – Kurt McKee und Mark Pilgrim für universelles RSS/Atom-Parsing (BSD-2-Clause).
 - **[youtube-transcript-api](https://github.com/jdepoix/youtube-transcript-api)** – Jonas Depoix für die Extraktion von YouTube-Transkripten und Zeitstempeln (MIT).
 - **[Uvicorn](https://www.uvicorn.org/) & [HTTPX](https://www.encode.io/httpx/)** – Das Encode-Team (Tom Christie et al.) für moderne asynchrone HTTP-Clients und Server (BSD-3-Clause).
-- **[Pydantic](https://docs.pydantic.dev/)** – Samuel Colvin und Team für typsichere Datenvalidierung (MIT).
+- **[Pydantic](https://docs.pydantic.dev/) & [pydantic-settings](https://github.com/pydantic/pydantic-settings)** – Samuel Colvin und Team für typsichere Datenvalidierung und Konfiguration (MIT).
+- **[python-multipart](https://github.com/Kludex/python-multipart)** – Marcelo Trylesinski (`@Kludex`) und Andrew Chen Wang für Multipart-Formulardaten-Streaming (Apache-2.0).
 - **[Bootstrap](https://getbootstrap.com/)** – Das Bootstrap-Team für das lokal gebündelte UI-Framework (MIT).
 - **[Google GenAI SDK](https://github.com/google-gemini/google-genai)** – Google für das SDK zur Gemini 2.5 KI-Integration (Apache-2.0).
 
