@@ -17,4 +17,5 @@ For full architectural context and German project notes, see [GEMINI.md](file://
    - No external CDNs (strict CSP compliance).
 3. **Async Architecture**: Use Python 3.11 `asyncio`, FastAPI async route handlers, and SQLAlchemy 2.0 async sessions.
 4. **Single-File Commits (ADR-0003)**: Commit individual files with clear Conventional Commit messages in English.
-5. **Quality Gate**: Always run `pytest tests -v` and `python .github/scripts/verify_spdx_headers.py` before finalizing changes.
+5. **Explicit File Extensions (ADR-0004)**: Always use unabbreviated extensions (e.g. `.yaml` instead of `.yml`, `.html` instead of `.htm`).
+6. **Quality Gate**: Always run `pytest tests -v` and `python .github/scripts/verify_spdx_headers.py` before finalizing changes.
