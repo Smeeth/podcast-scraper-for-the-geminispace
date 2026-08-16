@@ -1,0 +1,32 @@
+{
+  "spdx-compliance": {
+    "enabled": false,
+    "PostToolUse": [
+      {
+        "matcher": "write_to_file|replace_file_content|multi_replace_file_content",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python .github/scripts/verify_spdx_headers.py",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  },
+  "security-check": {
+    "enabled": false,
+    "PostToolUse": [
+      {
+        "matcher": "write_to_file|replace_file_content|multi_replace_file_content",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python .github/scripts/security_audit.py",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}
