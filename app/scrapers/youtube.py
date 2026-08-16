@@ -57,13 +57,13 @@ class YouTubeScraper(BaseScraper):
             "ignoreerrors": True,
         }
 
-        def _fetch_probe():
+        def _fetch_probe() -> dict[str, Any]:
             with yt_dlp.YoutubeDL(probe_opts) as ydl:  # type: ignore[arg-type]
                 info = ydl.extract_info(url, download=False)
                 return dict(info) if isinstance(info, dict) else {}
 
         try:
-            info = await asyncio.to_thread(_fetch_probe)
+            info: dict[str, Any] = await asyncio.to_thread(_fetch_probe)
         except Exception as e:
             safe_url = sanitize_log_message(url)
             logger.error("Fehler bei YouTube Probe für %s: %s", safe_url, e)
@@ -72,17 +72,27 @@ class YouTubeScraper(BaseScraper):
         if not info:
             raise ScraperException("Keine Kanalinformationen von YouTube erhalten.")
 
-        title = info.get("channel") or info.get("uploader") or info.get("title") or "YouTube Kanal"
-        author = info.get("uploader") or info.get("channel") or "Unbekannt"
-        description = (info.get("description") or "")[:500]
+        title = str(info.get("channel") or info.get("uploader") or info.get("title") or "YouTube Kanal")
+        author = str(info.get("uploader") or info.get("channel") or "Unbekannt")
+        description = str(info.get("description") or "")[:500]
 
-        thumbnails = info.get("thumbnails") or []
-        image_url = thumbnails[-1].get("url") if thumbnails else info.get("thumbnail")
+        thumbnails = info.get("thumbnails")
+        image_url: str | None = None
+        if isinstance(thumbnails, list) and thumbnails:
+            last_thumb = thumbnails[-1]
+            if isinstance(last_thumb, dict):
+                image_url = str(last_thumb.get("url") or "") or None
+        if not image_url and info.get("thumbnail"):
+            image_url = str(info.get("thumbnail"))
 
-        approx_count = info.get("playlist_count")
-        if approx_count is None and "entries" in info:
+        approx_count: int | None = None
+        raw_count = info.get("playlist_count")
+        if isinstance(raw_count, int):
+            approx_count = raw_count
+        elif "entries" in info:
             entries = info.get("entries")
-            approx_count = len(entries) if entries else None
+            if isinstance(entries, (list, tuple)):
+                approx_count = len(entries)
 
         return ProbeResultDTO(
             platform="youtube",
