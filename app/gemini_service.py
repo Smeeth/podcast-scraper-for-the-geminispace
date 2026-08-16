@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Podcast & Media Channel Researcher Contributors
 
-import logging
 import asyncio
-from typing import Optional, Dict, Any, List
+import logging
+from typing import Any
+
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -14,6 +15,8 @@ try:
     from google.genai import types
     GENAI_SDK_AVAILABLE = True
 except ImportError:
+    genai = None  # type: ignore[assignment]
+    types = None  # type: ignore[assignment]
     GENAI_SDK_AVAILABLE = False
     logger.warning("google-genai SDK nicht installiert. KI-Funktionen stehen nur eingeschränkt zur Verfügung.")
 
@@ -35,7 +38,7 @@ class GeminiAIService:
     def __init__(self):
         self.api_key = settings.GEMINI_API_KEY if settings.is_gemini_available() else None
         self.client = None
-        if self.api_key and GENAI_SDK_AVAILABLE:
+        if self.api_key and GENAI_SDK_AVAILABLE and genai:
             try:
                 self.client = genai.Client(api_key=self.api_key)
             except Exception as e:
@@ -47,15 +50,15 @@ class GeminiAIService:
 
     def _get_client(self):
         """Lazy Initialisierung des Google GenAI Clients."""
-        if not self.client and self.api_key and GENAI_SDK_AVAILABLE:
+        if not self.client and self.api_key and GENAI_SDK_AVAILABLE and genai:
             self.client = genai.Client(api_key=self.api_key)
         return self.client
 
     def _build_context_text(
         self,
-        podcast_info: Dict[str, Any],
-        episodes: List[Dict[str, Any]],
-        transcript_text: Optional[str] = None
+        podcast_info: dict[str, Any],
+        episodes: list[dict[str, Any]],
+        transcript_text: str | None = None
     ) -> str:
         """
         Kombiniert Metadaten, Episoden und Transkripte zu einem optimierten Kontext-String.
@@ -69,8 +72,8 @@ class GeminiAIService:
         ]
 
         for ep in episodes[:50]:  # Bis zu 50 Episoden für den Kontext
-            dur_min = (ep.get('duration_seconds') or 0) // 60
-            pub = ep.get('published_at') or 'Unbekannt'
+            dur_min = (ep.get("duration_seconds") or 0) // 60
+            pub = ep.get("published_at") or "Unbekannt"
             parts.append(
                 f"- Folge {ep.get('episode_number') or '#'}: '{ep.get('title')}' "
                 f"(Datum: {pub}, Dauer: {dur_min} min)\n"
@@ -86,7 +89,7 @@ class GeminiAIService:
         self,
         analysis_type: str,
         context: str,
-        custom_query: Optional[str] = None
+        custom_query: str | None = None
     ) -> str:
         """
         Erstellt den zielgerichteten Prompt basierend auf dem Analysetyp.
@@ -105,7 +108,7 @@ KONTEXT-DATEN:
 {context}
 """
 
-        elif analysis_type == "guests_topics":
+        if analysis_type == "guests_topics":
             return f"""Analysiere den folgenden Podcast/Kanal und erstelle ein detailliertes Profil aller Gäste, Rollen und Hauptthemen.
 
 Gliedere deine Antwort in:
@@ -117,7 +120,7 @@ KONTEXT-DATEN:
 {context}
 """
 
-        elif analysis_type == "qa":
+        if analysis_type == "qa":
             query = custom_query or "Fasse die wichtigsten Kernaussagen zusammen."
             return f"""Beantworte die folgende Frage präzise und belegt auf Basis der bereitgestellten Podcast-Daten und Transkripte.
 
@@ -131,7 +134,7 @@ ANWEISUNG:
 Gib genaue Zeitstempel oder Episodentitel an, wenn du Aussagen belegst. Halluziniere keine Fakten.
 """
 
-        elif analysis_type == "summary":
+        if analysis_type == "summary":
             return f"""Erstelle eine hochstrukturierte Executive Summary für diesen Podcast/Kanal.
 
 Inhalte:
@@ -143,9 +146,9 @@ KONTEXT-DATEN:
 {context}
 """
 
-        else:  # custom_chat / freier Dialog
-            prompt_body = custom_query or "Analysiere die vorliegenden Episoden und hebe Besonderheiten hervor."
-            return f"""{prompt_body}
+        # custom_chat / freier Dialog
+        prompt_body = custom_query or "Analysiere die vorliegenden Episoden und hebe Besonderheiten hervor."
+        return f"""{prompt_body}
 
 KONTEXT-DATEN:
 {context}
@@ -154,12 +157,12 @@ KONTEXT-DATEN:
     async def generate_analysis(
         self,
         analysis_type: str,
-        podcast_info: Dict[str, Any],
-        episodes: List[Dict[str, Any]],
-        transcript_text: Optional[str] = None,
-        custom_query: Optional[str] = None,
-        model_override: Optional[str] = None
-    ) -> Dict[str, Any]:
+        podcast_info: dict[str, Any],
+        episodes: list[dict[str, Any]],
+        transcript_text: str | None = None,
+        custom_query: str | None = None,
+        model_override: str | None = None
+    ) -> dict[str, Any]:
         """
         Führt die KI-Analyse mit Google Gemini asynchron aus.
         """
@@ -184,6 +187,8 @@ KONTEXT-DATEN:
 
         def _call_gemini_sync() -> str:
             client = self._get_client()
+            if not client or not types:
+                return "Gemini Client oder SDK nicht initialisiert."
             response = client.models.generate_content(
                 model=model_name,
                 contents=prompt,
