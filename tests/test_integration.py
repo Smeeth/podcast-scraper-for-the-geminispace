@@ -1,14 +1,14 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Podcast & Media Channel Researcher Contributors
 
-import unittest
 import asyncio
-from fastapi.testclient import TestClient
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+import unittest
 
-from app.main import app
+from fastapi.testclient import TestClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
 from app.database import Base, get_db
-from app.models import Podcast, Episode, Transcript, AIAnalysis
+from app.main import app
 
 
 class TestFastAPIIntegration(unittest.TestCase):
@@ -70,7 +70,7 @@ class TestFastAPIIntegration(unittest.TestCase):
         resp = self.client.get("/")
         self.assertEqual(resp.status_code, 200)
         self.assertIn("Media Researcher & AI Analyzer", resp.text)
-        self.assertIn("data-bs-theme=\"dark\"", resp.text)
+        self.assertIn('data-bs-theme="dark"', resp.text)
 
     def test_ssrf_blocked_on_scrape_endpoint(self):
         resp = self.client.post("/api/scrape", json={"url": "http://169.254.169.254/latest/meta-data/"})
