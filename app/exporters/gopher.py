@@ -7,12 +7,14 @@ Generiert standardkonforme Gopher-Menüdateien (gophermaps) für Podcasts und Ep
 Alle Medien werden direkt als Weblinks (h...\\tURL:...) eingebunden, ohne Mediendateien lokal herunterzuladen.
 """
 
-from typing import List, Optional
-from app.models import Podcast, Episode
+
+from collections.abc import Sequence
+
 from app.exporters.utils import safe_slug
+from app.models import Podcast
 
 
-def _clean_gopher_field(text: Optional[str]) -> str:
+def _clean_gopher_field(text: str | None) -> str:
     """
     Bereinigt Text von Tabulatoren und Zeilenumbrüchen (RFC 1436 Konformität).
     Verhindert Spalten-Desynchronisation in Gopher-Clients.
@@ -47,12 +49,12 @@ def generate_gophermap_podcast(podcast: Podcast, host: str = "localhost", port: 
     """
     Erstellt ein RFC-1436 konformes gophermap-Dokument für einen Podcast.
     """
-    lines: List[str] = [
-        _make_info_line(f"============================================================", host, port),
+    lines: list[str] = [
+        _make_info_line("============================================================", host, port),
         _make_info_line(f" Podcast: {podcast.title}", host, port),
         _make_info_line(f" Autor:   {podcast.author or 'Unbekannt'}", host, port),
         _make_info_line(f" Format:  {podcast.platform.upper()}", host, port),
-        _make_info_line(f"============================================================", host, port),
+        _make_info_line("============================================================", host, port),
         _make_info_line("", host, port),
     ]
 
@@ -109,11 +111,11 @@ def generate_gophermap_podcast(podcast: Podcast, host: str = "localhost", port: 
     return "\n".join(lines) + "\n"
 
 
-def generate_gophermap_index(podcasts: List[Podcast], host: str = "localhost", port: int = 70) -> str:
+def generate_gophermap_index(podcasts: Sequence[Podcast], host: str = "localhost", port: int = 70) -> str:
     """
     Erstellt die Haupt-gophermap für den Gopherspace Root-Directory.
     """
-    lines: List[str] = [
+    lines: list[str] = [
         _make_info_line("============================================================", host, port),
         _make_info_line("   Podcast & Media Channel Researcher Archive (Gopherspace) ", host, port),
         _make_info_line("============================================================", host, port),
