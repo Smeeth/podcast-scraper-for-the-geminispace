@@ -7,11 +7,11 @@ Scraper Modulpaket für modulare Medienextraktion.
 
 from app.scrapers.base import (
     BaseScraper,
-    PodcastDTO,
-    EpisodeDTO,
-    TranscriptDTO,
     ChapterDTO,
-    TranscriptSegmentDTO
+    EpisodeDTO,
+    PodcastDTO,
+    TranscriptDTO,
+    TranscriptSegmentDTO,
 )
 from app.scrapers.factory import ScraperFactory
 
