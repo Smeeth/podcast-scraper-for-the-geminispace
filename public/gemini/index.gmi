@@ -6,4 +6,5 @@ Sämtliche Episoden sind als direkte Medien-Links referenziert.
 
 Aktuell sind noch keine Podcasts im Archiv erfasst.
 ---
+=> feed.gmi 📡 Neuer Episoden-Feed (Abonnierbar)
 Server-Info: Generiert mit Podcast & Media Channel Researcher & AI Analyzer (GPL-3.0)
