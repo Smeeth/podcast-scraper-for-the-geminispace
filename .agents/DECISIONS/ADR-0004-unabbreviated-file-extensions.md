@@ -4,16 +4,20 @@
 # ADR-0004: Explizite, ungekürzte Dateiendungen (Explicit & Unabbreviated File Extensions)
 
 ## Status
+
 Akzeptiert
 
 ## Kontext
+
 Historisch bedingt (z. B. 8.3-Dateinamensgrenzen unter MS-DOS) wurden viele Dateiendungen auf drei Zeichen abgekürzt (z. B. `.yml` statt `.yaml`, `.htm` statt `.html`). In modernen Entwicklungs- und Produktivumgebungen führt die Vermischung von verkürzten und vollständigen Endungen zu Inkonsistenzen in Tooling, Linting, Skripten und CI-Pipelines.
 Im Projekt legen wir großen Wert auf Klarheit, Standardkonformität und die Vermeidung unvollständiger oder unnötig verkürzter Endungen.
 
 ## Entscheidung
+
 Im gesamten Repository gilt für alle neu erstellten sowie bestehenden Dateien die verbindliche Vorgabe: **Es sind stets die ungekürzten, standardisierten Dateiendungen zu verwenden.**
 
 Konkret gilt:
+
 1. **YAML-Dateien:**
    - Ausschließliche Verwendung von `.yaml` (z. B. `.github/workflows/*.yaml`, `docker-compose.yaml`, `.github/dependabot.yaml`, `.github/ISSUE_TEMPLATE/*.yaml`).
    - Die veraltete/abgekürzte Form `.yml` ist im gesamten Repository unzulässig.
@@ -26,6 +30,7 @@ Konkret gilt:
    - Vorlagen aus externen Quellen, die `.yml` mitbringen, müssen beim Import zwingend auf `.yaml` angepasst werden.
 
 ## Konsequenzen
+
 - **Vorteile:**
   - 100% einheitliche Dateistruktur im Projekt.
   - Verhindert Mehrdeutigkeiten und Mischformen im Repository.
