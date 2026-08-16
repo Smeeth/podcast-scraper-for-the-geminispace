@@ -2,24 +2,26 @@
 # Copyright (C) 2026 Podcast & Media Channel Researcher Contributors
 
 import asyncio
+import contextlib
 import logging
 import re
-from datetime import datetime, timezone
-from typing import Optional, List, Dict, Any
-from urllib.parse import urlparse, parse_qs
-import yt_dlp
-from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
+from datetime import UTC, datetime
+from typing import Any
+from urllib.parse import parse_qs, urlparse
 
+import yt_dlp
+from youtube_transcript_api import NoTranscriptFound, TranscriptsDisabled, YouTubeTranscriptApi
+
+from app.config import settings
 from app.scrapers.base import (
     BaseScraper,
-    PodcastDTO,
-    EpisodeDTO,
     ChapterDTO,
+    EpisodeDTO,
+    PodcastDTO,
+    ScraperException,
     TranscriptDTO,
     TranscriptSegmentDTO,
-    ScraperException
 )
-from app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +33,7 @@ class YouTubeScraper(BaseScraper):
     """
 
     def __init__(self):
-        self.ydl_opts: Dict[str, Any] = {
+        self.ydl_opts: dict[str, Any] = {
             "quiet": True,
             "no_warnings": True,
             "extract_flat": "in_playlist",
@@ -41,7 +43,7 @@ class YouTubeScraper(BaseScraper):
             "noplaylist": False,
         }
 
-    def _extract_video_id(self, url: str) -> Optional[str]:
+    def _extract_video_id(self, url: str) -> str | None:
         """Extrahiert sicher die 11-stellige Video-ID aus einer YouTube-URL."""
         if not url:
             return None
@@ -52,23 +54,23 @@ class YouTubeScraper(BaseScraper):
             if parsed.path == "/watch":
                 qs = parse_qs(parsed.query)
                 return qs.get("v", [None])[0]
-            elif parsed.path.startswith("/embed/"):
+            if parsed.path.startswith("/embed/"):
                 return parsed.path.split("/embed/")[1].split("/")[0]
-            elif parsed.path.startswith("/v/"):
+            if parsed.path.startswith("/v/"):
                 return parsed.path.split("/v/")[1].split("/")[0]
-            elif parsed.path.startswith("/shorts/"):
+            if parsed.path.startswith("/shorts/"):
                 return parsed.path.split("/shorts/")[1].split("/")[0].split("?")[0]
-            elif parsed.path.startswith("/live/"):
+            if parsed.path.startswith("/live/"):
                 return parsed.path.split("/live/")[1].split("/")[0].split("?")[0]
         # Regex Fallback
         match = re.search(r"(?:v=|\/)([0-9A-Za-z_-]{11}).*", url)
         return match.group(1) if match else None
 
-    def _parse_chapters_from_description(self, description: str) -> List[ChapterDTO]:
+    def _parse_chapters_from_description(self, description: str) -> list[ChapterDTO]:
         """Extrahiert Kapitelmarken aus Show Notes (z.B. 01:23 Thema A, [01:23] Thema B, (01:23) - Thema C)."""
         if not description:
             return []
-        chapters: List[ChapterDTO] = []
+        chapters: list[ChapterDTO] = []
         # Pattern für mm:ss oder hh:mm:ss gefolgt von Text (mit optionalen Klammern [01:23] oder (01:23))
         pattern = re.compile(r"^[\[\(]?(\d{1,2}:\d{2}(?::\d{2})?)[\]\)]?[:\s\-–—]+\s*(.+)$", re.MULTILINE)
         for match in pattern.finditer(description):
@@ -83,10 +85,11 @@ class YouTubeScraper(BaseScraper):
             chapters.append(ChapterDTO(title=title, start_time=float(seconds), start_time_formatted=time_str))
         return chapters
 
-    def _fetch_yt_info(self, url: str) -> Dict[str, Any]:
+    def _fetch_yt_info(self, url: str) -> dict[str, Any]:
         """Synchroner yt-dlp Extraktionsaufruf zur Ausführung in ThreadPool."""
-        with yt_dlp.YoutubeDL(self.ydl_opts) as ydl:
-            return ydl.extract_info(url, download=False)
+        with yt_dlp.YoutubeDL(self.ydl_opts) as ydl:  # type: ignore[arg-type]
+            info: Any = ydl.extract_info(url, download=False)
+            return dict(info) if isinstance(info, dict) else {}
 
     async def extract_podcast_and_episodes(
         self,
@@ -101,7 +104,7 @@ class YouTubeScraper(BaseScraper):
             info = await asyncio.to_thread(self._fetch_yt_info, url)
         except Exception as e:
             logger.error(f"Fehler bei YouTube-Extraktion für {url}: {e}")
-            raise ScraperException(f"YouTube-Daten konnten nicht geladen werden: {str(e)}")
+            raise ScraperException(f"YouTube-Daten konnten nicht geladen werden: {str(e)}") from e
 
         if not info:
             raise ScraperException("Keine Daten von YouTube empfangen.")
@@ -120,10 +123,8 @@ class YouTubeScraper(BaseScraper):
             pub_date = None
             upload_date = info.get("upload_date")
             if upload_date and len(upload_date) == 8:
-                try:
-                    pub_date = datetime.strptime(upload_date, "%Y%m%d").replace(tzinfo=timezone.utc)
-                except ValueError:
-                    pass
+                with contextlib.suppress(ValueError):
+                    pub_date = datetime.strptime(upload_date, "%Y%m%d").replace(tzinfo=UTC)
 
             chapters = []
             if info.get("chapters"):
@@ -176,7 +177,7 @@ class YouTubeScraper(BaseScraper):
         channel_thumbnail = thumbnails[-1].get("url") if thumbnails else info.get("thumbnail")
 
         entries = list(info.get("entries") or [])
-        episodes: List[EpisodeDTO] = []
+        episodes: list[EpisodeDTO] = []
 
         for idx, entry in enumerate(entries[:limit], start=1):
             if not entry:
@@ -189,10 +190,8 @@ class YouTubeScraper(BaseScraper):
             upload_date = entry.get("upload_date")
             pub_date = None
             if upload_date and len(upload_date) == 8:
-                try:
-                    pub_date = datetime.strptime(upload_date, "%Y%m%d").replace(tzinfo=timezone.utc)
-                except ValueError:
-                    pass
+                with contextlib.suppress(ValueError):
+                    pub_date = datetime.strptime(upload_date, "%Y%m%d").replace(tzinfo=UTC)
 
             desc = entry.get("description") or ""
             chapters = self._parse_chapters_from_description(desc)
@@ -229,7 +228,7 @@ class YouTubeScraper(BaseScraper):
             episodes=episodes
         )
 
-    async def extract_transcript(self, episode_external_id_or_url: str) -> Optional[TranscriptDTO]:
+    async def extract_transcript(self, episode_external_id_or_url: str) -> TranscriptDTO | None:
         """
         Lädt Zeitstempel-Segmente und Volltext via youtube-transcript-api.
         """
@@ -237,10 +236,13 @@ class YouTubeScraper(BaseScraper):
         if not video_id or len(video_id) != 11:
             return None
 
-        def _get_transcript_sync() -> Optional[TranscriptDTO]:
+        def _get_transcript_sync() -> TranscriptDTO | None:
             try:
                 # Bevorzugte Sprachen: Deutsch, Englisch
-                transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+                if hasattr(YouTubeTranscriptApi, "list_transcripts"):
+                    transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)  # type: ignore[attr-defined]
+                else:
+                    transcript_list = YouTubeTranscriptApi().list(video_id)
                 # Versuche manuell erstellte oder automatisch generierte Transkripte zu finden
                 try:
                     t = transcript_list.find_transcript(["de", "de-DE", "en", "en-US", "en-GB"])
@@ -249,20 +251,19 @@ class YouTubeScraper(BaseScraper):
                     t = next(iter(transcript_list))
 
                 raw_segments = t.fetch()
-                segments: List[TranscriptSegmentDTO] = []
-                full_text_parts: List[str] = []
+                segments: list[TranscriptSegmentDTO] = []
+                full_text_parts: list[str] = []
 
                 for item in raw_segments:
                     # youtube-transcript-api v0.6.x returns dicts; v1.x returns FetchedTranscriptSnippet objects.
-                    # Support both interfaces via hasattr detection.
-                    if hasattr(item, 'text'):
-                        text = (item.text or "").strip()
-                        start = float(item.start or 0)
-                        duration = float(item.duration or 0)
+                    if isinstance(item, dict):
+                        text = str(item.get("text", "")).strip()
+                        start = float(item.get("start", 0) or 0)
+                        duration = float(item.get("duration", 0) or 0)
                     else:
-                        text = (item.get("text") or "").strip()
-                        start = float(item.get("start") or 0)
-                        duration = float(item.get("duration") or 0)
+                        text = str(getattr(item, "text", "") or "").strip()
+                        start = float(getattr(item, "start", 0) or 0)
+                        duration = float(getattr(item, "duration", 0) or 0)
                     if text:
                         segments.append(TranscriptSegmentDTO(
                             start=start,
