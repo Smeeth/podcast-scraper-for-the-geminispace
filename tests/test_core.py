@@ -4,7 +4,7 @@
 import unittest
 from datetime import UTC
 
-from app.config import is_safe_external_url
+from app.config import is_safe_external_url, validate_and_reconstruct_safe_url
 from app.schemas import AIAnalysisRequest, ScrapeRequest
 from app.scrapers.factory import ScraperFactory
 from app.scrapers.rss import RSSScraper
@@ -41,6 +41,16 @@ class TestSecurityAndSSRF(unittest.TestCase):
             is_safe, msg = is_safe_external_url(url)
             self.assertTrue(is_safe, f"Gültige URL {url} wurde fälschlicherweise geblockt: {msg}")
 
+    def test_validate_and_reconstruct_safe_url(self):
+        """Testet die Komponenten-Rekonstruktion und Taint-Barrier."""
+        is_safe, msg, reconstructed = validate_and_reconstruct_safe_url("https://example.com:443/feed.xml?a=1&b=2#frag")
+        self.assertTrue(is_safe)
+        self.assertEqual(reconstructed, "https://example.com:443/feed.xml?a=1&b=2")
+
+        # Unsichere URL
+        is_safe, msg, reconstructed = validate_and_reconstruct_safe_url("http://127.0.0.1:8080/secret")
+        self.assertFalse(is_safe)
+        self.assertEqual(reconstructed, "")
 
     def test_ssrf_evasion_techniques(self):
         """Testet erweiterte SSRF-Evasion-Techniken wie DWORD, Hex, Oktal und IPv6."""
