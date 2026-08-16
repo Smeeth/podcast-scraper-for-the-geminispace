@@ -20,11 +20,17 @@ Dieses Dokument hält den aktuellen Projektstatus, offene Punkte und Kontextinfo
 - [x] GitHub Ecosystem (`.github/` mit CI, Docker-Build, CodeQL, Dependabot, Issue/PR-Templates & Verifikationsskripten auf `ubuntu-latest`)
 - [x] ADR-0003: Granulare Single-File Commit-Strategie in englischer Sprache
 - [x] ADR-0004: Explizite, ungekürzte Dateiendungen (`.yaml` statt `.yml`)
+- [x] ADR-0005: 2-Stufen-Feed-Probing (`/api/probe`), Zero-Media-Storage, Wikipedia-Vorlagensynthese & Transkript-Recherche (`/api/search/transcripts`)
+- [x] Geminispace Feed-Syndikation (`feed.gmi`) für Kapsel-Abonnements
 
 ## System-Merkmale & Sicherheitsrichtlinien
 
-1. **Lokal gebündeltes Bootstrap 5:** Vollständig unter `app/static/vendor/` bereitgestellt, kompatibel mit strikter CSP (`default-src 'self'`).
-2. **SSRF-Validierung:** Bei IP-Auflösung von Domains werden DNS-Antworten auf RFC-1918, Cloud-Metadaten (`169.254.169.254`) und Loopback-Ranges geprüft.
-3. **Flexible Datenbankanbindung:** Standardmäßig über isolierten PostgreSQL 16 Container in `docker-compose.yaml`, nahtlos umschaltbar auf externe PostgreSQL-Instanzen über `DATABASE_URL`.
-4. **Granulare Versionskontrolle (ADR-0003):** Jeder Dateizusatz und jede Dateiänderung wird in einem separaten Commit dokumentiert.
-5. **Ungekürzte Dateiendungen (ADR-0004):** Ausschließlich `.yaml`, `.html`, `.md`, `.js`, `.json`.
+1. **2-Stufen-Workflow (ADR-0005):** Sekundenschneller Vorab-Check (`/api/probe`) mit konfigurierbarem Tiefenscan und Zero-Media-Storage (kein Audio/Video-Download).
+2. **Lokal gebündeltes Bootstrap 5:** Vollständig unter `app/static/vendor/` bereitgestellt, kompatibel mit strikter CSP (`default-src 'self'`).
+3. **SSRF-Validierung:** Bei IP-Auflösung von Domains werden DNS-Antworten auf RFC-1918, Cloud-Metadaten (`169.254.169.254`) und Loopback-Ranges geprüft.
+4. **Wikipedia-Synthese:** MediaWiki `wikitable` und deutsche `{{Episodenliste}}` mit automatischem Wiki-Linking von Gästen.
+5. **Transkript-Recherche:** Sekundengenaue Volltextsuche über alle Transkripte mit YouTube-Timestamp-Links.
+6. **Flexible Datenbankanbindung:** Standardmäßig über isolierten PostgreSQL 16 Container in `docker-compose.yaml` oder autarken SQLite-Modus.
+7. **Granulare Versionskontrolle (ADR-0003):** Jeder Dateizusatz und jede Dateiänderung wird in einem separaten Commit dokumentiert.
+8. **Ungekürzte Dateiendungen (ADR-0004):** Ausschließlich `.yaml`, `.html`, `.md`, `.js`, `.json`.
+
