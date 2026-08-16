@@ -132,18 +132,29 @@ const app = {
   handleUrlInput: function (url) {
     const badge = document.getElementById('urlPlatformDetectBadge');
     if (!badge) return;
-    const lower = url.toLowerCase().trim();
+    const trimmed = (url || '').trim();
+    if (!trimmed) {
+      badge.className = 'badge bg-secondary d-none';
+      return;
+    }
 
-    if (lower.includes('youtube.com') || lower.includes('youtu.be')) {
-      badge.className = 'badge badge-youtube d-inline-block';
-      badge.textContent = '▶️ YouTube Feed';
-    } else if (lower.includes('podcasts.apple.com')) {
-      badge.className = 'badge badge-apple d-inline-block';
-      badge.textContent = '🍏 Apple Podcasts';
-    } else if (lower.startsWith('http://') || lower.startsWith('https://')) {
-      badge.className = 'badge badge-rss d-inline-block';
-      badge.textContent = '🎙️ RSS / Atom Feed';
-    } else {
+    try {
+      const parsed = new URL(trimmed.startsWith('http://') || trimmed.startsWith('https://') ? trimmed : `https://${trimmed}`);
+      const host = parsed.hostname.toLowerCase();
+
+      if (host === 'youtube.com' || host.endsWith('.youtube.com') || host === 'youtu.be' || host.endsWith('.youtu.be')) {
+        badge.className = 'badge badge-youtube d-inline-block';
+        badge.textContent = '▶️ YouTube Feed';
+      } else if (host === 'podcasts.apple.com' || host === 'itunes.apple.com' || host.endsWith('.apple.com')) {
+        badge.className = 'badge badge-apple d-inline-block';
+        badge.textContent = '🍏 Apple Podcasts';
+      } else if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+        badge.className = 'badge badge-rss d-inline-block';
+        badge.textContent = '🎙️ RSS / Atom Feed';
+      } else {
+        badge.className = 'badge bg-secondary d-none';
+      }
+    } catch {
       badge.className = 'badge bg-secondary d-none';
     }
   },
