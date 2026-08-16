@@ -6,9 +6,9 @@ Validator für Gemtext- (.gmi) und Gophermap-Dateien.
 Prüft auf Konformität mit den Geminispace- und Gopherspace-Standards.
 """
 
+import re
 import sys
 from pathlib import Path
-import re
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
@@ -34,14 +34,13 @@ def validate_gemtext(content: str, filename: str) -> list:
             if not match:
                 errors.append(f"{filename}:{i} - Ungültige Gemtext-Linkzeile: '{line}'")
             else:
-                url = match.group(1)
+                match.group(1)
                 if "\t" in line:
                     errors.append(f"{filename}:{i} - Tabulatoren in Gemtext-Links vermeiden.")
 
         # Überschriften-Checks
-        if line.startswith("#"):
-            if not re.match(r"^#{1,3}\s+\S+", line):
-                errors.append(f"{filename}:{i} - Ungültige Überschrift (Leerzeichen nach # erforderlich): '{line}'")
+        if line.startswith("#") and not re.match(r"^#{1,3}\s+\S+", line):
+            errors.append(f"{filename}:{i} - Ungültige Überschrift (Leerzeichen nach # erforderlich): '{line}'")
 
     if in_preformatted:
         errors.append(f"{filename} - Nicht geschlossener Preformatted-Block (```) am Dateiende.")
