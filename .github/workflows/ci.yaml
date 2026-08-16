@@ -12,7 +12,7 @@ permissions:
 jobs:
   test-and-security:
     name: Test & Security Audit (Python ${{ matrix.python-version }})
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -30,8 +30,7 @@ jobs:
 
       - name: Install System Dependencies (ffmpeg)
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
+          which ffmpeg || (sudo apt-get update && sudo apt-get install -y ffmpeg)
 
       - name: Install Python Dependencies
         run: |
