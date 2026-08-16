@@ -87,9 +87,17 @@ class RSSScraper(BaseScraper):
             description = str(description)[:500]
 
         image_url = None
-        if hasattr(channel, "image") and hasattr(channel.image, "href"):
-            image_url = str(channel.image.href)
-        elif apple_metadata and "artworkUrl600" in apple_metadata:
+        if isinstance(channel, dict):
+            img = channel.get("image")
+            if isinstance(img, dict) and "href" in img:
+                image_url = str(img["href"])
+            elif img is not None and hasattr(img, "href"):
+                image_url = str(getattr(img, "href", ""))
+        else:
+            ch_img = getattr(channel, "image", None)
+            if ch_img and hasattr(ch_img, "href"):
+                image_url = str(getattr(ch_img, "href", ""))
+        if not image_url and apple_metadata and "artworkUrl600" in apple_metadata:
             image_url = str(apple_metadata["artworkUrl600"])
 
         entries = getattr(parsed, "entries", [])
