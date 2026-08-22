@@ -2,7 +2,7 @@
 # Copyright (C) 2026 Podcast & Media Channel Researcher Contributors
 
 fastapi>=0.141.1
-uvicorn[standard]>=0.52.2
+uvicorn[standard]>=0.52.4
 pydantic>=2.13.4
 pydantic-settings>=2.15.0
 sqlalchemy[asyncio]>=2.0.52
@@ -12,7 +12,7 @@ aiosqlite>=0.22.1
 yt-dlp>=2026.7.4
 feedparser>=6.0.14
 defusedxml>=0.7.1
-google-genai>=2.18.0
+google-genai>=2.18.1
 youtube-transcript-api>=1.2.4
 httpx>=0.28.1
 python-multipart>=0.0.32
